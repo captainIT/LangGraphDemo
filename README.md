@@ -152,3 +152,4 @@ app/
   schemas/      # Request/response models
   utils/        # Utility helpers
 ```
+
