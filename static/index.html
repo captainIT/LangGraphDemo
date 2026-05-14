@@ -199,7 +199,7 @@
 <body>
   <header>
     <h1>LangGraph Demo</h1>
-    <p>LLM agents, streaming, and function calling (tool traces) against this service.</p>
+    <p>LLM agents, LangGraph demos (workflow, checkpoint, conditional route, ReAct), streaming, and tool traces.</p>
   </header>
   <main>
     <section id="sec-health">
@@ -276,6 +276,57 @@
       <label style="margin-top: 0.75rem;">Output</label>
       <div class="output empty" id="wf-output">—</div>
       <div class="error" id="wf-error" hidden></div>
+    </section>
+
+    <section id="sec-lg-checkpoint">
+      <h2>LangGraph — checkpoint chat</h2>
+      <p class="hint"><code>POST /api/v1/agents/demo/checkpoint</code> — <code>InMemorySaver</code>; reuse <strong>thread id</strong> across calls to continue the same conversation (until server restart).</p>
+      <div class="row">
+        <div>
+          <label for="lg-cp-thread">Thread id</label>
+          <input type="text" id="lg-cp-thread" value="ui-demo-1" maxlength="128" pattern="[a-zA-Z0-9_-]+" spellcheck="false" />
+        </div>
+      </div>
+      <label for="lg-cp-input">Message</label>
+      <textarea id="lg-cp-input" rows="3" placeholder="First turn: introduce a fact. Second turn (same thread id): ask the model to recall it."></textarea>
+      <div class="row" style="margin-top: 0.75rem;">
+        <button type="button" id="btn-lg-checkpoint">Send turn</button>
+      </div>
+      <label>Assistant reply</label>
+      <div class="output empty" id="lg-cp-reply">—</div>
+      <label style="margin-top: 0.75rem;">Messages in thread (count)</label>
+      <div class="output empty" id="lg-cp-meta">—</div>
+      <div class="error" id="lg-cp-error" hidden></div>
+    </section>
+
+    <section id="sec-lg-conditional">
+      <h2>LangGraph — conditional route</h2>
+      <p class="hint"><code>POST /api/v1/agents/demo/conditional-route</code> — routes to a math-style path when the text looks like a calculation, otherwise general Q&amp;A.</p>
+      <label for="lg-cr-input">Input</label>
+      <textarea id="lg-cr-input" rows="3" placeholder="Try: Calculate 12.5 + 7.3 — or: What is LangGraph in one sentence?"></textarea>
+      <div class="row" style="margin-top: 0.75rem;">
+        <button type="button" id="btn-lg-conditional">Run conditional demo</button>
+      </div>
+      <label>Chosen branch</label>
+      <div class="output empty" id="lg-cr-branch">—</div>
+      <label style="margin-top: 0.75rem;">Output</label>
+      <div class="output empty" id="lg-cr-output">—</div>
+      <div class="error" id="lg-cr-error" hidden></div>
+    </section>
+
+    <section id="sec-lg-react">
+      <h2>LangGraph — ReAct (prebuilt)</h2>
+      <p class="hint"><code>POST /api/v1/agents/demo/react-agent</code> — <code>create_react_agent</code> with the same demo tools (time, math, word count, slugify).</p>
+      <label for="lg-react-input">Task</label>
+      <textarea id="lg-react-input" rows="3" placeholder="e.g. What UTC time is it? Then add 10 and 32."></textarea>
+      <div class="row" style="margin-top: 0.75rem;">
+        <button type="button" id="btn-lg-react">Run ReAct demo</button>
+      </div>
+      <label>Final answer</label>
+      <div class="output empty" id="lg-react-answer">—</div>
+      <label style="margin-top: 0.75rem;">Tool messages (approx. rounds)</label>
+      <div class="output empty" id="lg-react-tools">—</div>
+      <div class="error" id="lg-react-error" hidden></div>
     </section>
 
     <section id="sec-tools">
@@ -533,6 +584,116 @@
       } catch (e) {
         stepsEl.textContent = "";
         outEl.textContent = "";
+        showError(err, e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("btn-lg-checkpoint").addEventListener("click", async () => {
+      const replyEl = document.getElementById("lg-cp-reply");
+      const metaEl = document.getElementById("lg-cp-meta");
+      const err = document.getElementById("lg-cp-error");
+      const btn = document.getElementById("btn-lg-checkpoint");
+      err.hidden = true;
+      const thread_id = document.getElementById("lg-cp-thread").value.trim();
+      const input_text = document.getElementById("lg-cp-input").value.trim();
+      if (!thread_id || !/^[a-zA-Z0-9_-]+$/.test(thread_id)) {
+        showError(err, "Thread id is required (letters, digits, underscore, hyphen only).");
+        return;
+      }
+      if (!input_text) {
+        showError(err, "Message is required.");
+        return;
+      }
+      btn.disabled = true;
+      replyEl.classList.remove("empty");
+      metaEl.classList.remove("empty");
+      replyEl.textContent = "Running…";
+      metaEl.textContent = "…";
+      try {
+        const j = await fetchJson("/api/v1/agents/demo/checkpoint", {
+          method: "POST",
+          body: JSON.stringify({ thread_id, input_text }),
+        });
+        const data = j.data || {};
+        replyEl.textContent = data.assistant_reply || "";
+        metaEl.textContent = `thread_id: ${data.thread_id ?? thread_id}\nmessage_count: ${data.message_count ?? "?"}`;
+      } catch (e) {
+        replyEl.textContent = "";
+        metaEl.textContent = "";
+        replyEl.classList.add("empty");
+        metaEl.classList.add("empty");
+        showError(err, e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("btn-lg-conditional").addEventListener("click", async () => {
+      const branchEl = document.getElementById("lg-cr-branch");
+      const outEl = document.getElementById("lg-cr-output");
+      const err = document.getElementById("lg-cr-error");
+      const btn = document.getElementById("btn-lg-conditional");
+      err.hidden = true;
+      const input_text = document.getElementById("lg-cr-input").value.trim();
+      if (!input_text) {
+        showError(err, "Input is required.");
+        return;
+      }
+      btn.disabled = true;
+      branchEl.classList.remove("empty");
+      outEl.classList.remove("empty");
+      branchEl.textContent = "Running…";
+      outEl.textContent = "…";
+      try {
+        const j = await fetchJson("/api/v1/agents/demo/conditional-route", {
+          method: "POST",
+          body: JSON.stringify({ input_text }),
+        });
+        const data = j.data || {};
+        branchEl.textContent = data.branch || "(unknown)";
+        outEl.textContent = data.output_text || "";
+      } catch (e) {
+        branchEl.textContent = "";
+        outEl.textContent = "";
+        branchEl.classList.add("empty");
+        outEl.classList.add("empty");
+        showError(err, e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("btn-lg-react").addEventListener("click", async () => {
+      const ansEl = document.getElementById("lg-react-answer");
+      const toolsEl = document.getElementById("lg-react-tools");
+      const err = document.getElementById("lg-react-error");
+      const btn = document.getElementById("btn-lg-react");
+      err.hidden = true;
+      const input_text = document.getElementById("lg-react-input").value.trim();
+      if (!input_text) {
+        showError(err, "Task is required.");
+        return;
+      }
+      btn.disabled = true;
+      ansEl.classList.remove("empty");
+      toolsEl.classList.remove("empty");
+      ansEl.textContent = "Running…";
+      toolsEl.textContent = "…";
+      try {
+        const j = await fetchJson("/api/v1/agents/demo/react-agent", {
+          method: "POST",
+          body: JSON.stringify({ input_text }),
+        });
+        const data = j.data || {};
+        ansEl.textContent = data.output_text || "";
+        toolsEl.textContent = String(data.tool_turns ?? 0);
+      } catch (e) {
+        ansEl.textContent = "";
+        toolsEl.textContent = "";
+        ansEl.classList.add("empty");
+        toolsEl.classList.add("empty");
         showError(err, e.message);
       } finally {
         btn.disabled = false;
