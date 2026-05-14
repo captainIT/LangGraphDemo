@@ -4,6 +4,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 
 from app.config import Settings, get_settings
+from app.schemas.langgraph_demo import (
+    LangGraphCheckpointDemoRequest,
+    LangGraphCheckpointDemoResult,
+    LangGraphConditionalDemoRequest,
+    LangGraphConditionalDemoResult,
+    LangGraphReactDemoRequest,
+    LangGraphReactDemoResult,
+)
 from app.schemas.agent import (
     AgentRunRequest,
     AgentRunResult,
@@ -15,6 +23,7 @@ from app.schemas.agent import (
 )
 from app.schemas.common import ApiResponse
 from app.service.agent_service import AgentService
+from app.service.langgraph_demo_service import LangGraphDemoService
 from app.transport.llm_client import LlmClient
 
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
@@ -28,6 +37,17 @@ def get_agent_service(settings: Annotated[Settings, Depends(get_settings)]) -> A
         base_url=settings.openai_base_url,
     )
     return AgentService(llm_client=llm_client)
+
+
+def get_langgraph_demo_service(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> LangGraphDemoService:
+    llm_client = LlmClient(
+        model=settings.openai_model,
+        api_key=settings.openai_api_key,
+        base_url=settings.openai_base_url,
+    )
+    return LangGraphDemoService(llm_client=llm_client)
 
 
 @router.get("", response_model=ApiResponse)
@@ -97,6 +117,60 @@ async def run_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to run collaborative workflow",
+        ) from exc
+
+
+@router.post("/demo/checkpoint", response_model=ApiResponse)
+async def demo_checkpoint_chat(
+    payload: LangGraphCheckpointDemoRequest,
+    service: Annotated[LangGraphDemoService, Depends(get_langgraph_demo_service)],
+) -> ApiResponse:
+    """Multi-turn chat with ``InMemorySaver``; same ``thread_id`` resumes prior messages."""
+    try:
+        data = await service.run_checkpoint_turn(payload.thread_id, payload.input_text)
+        result = LangGraphCheckpointDemoResult(**data)
+        return ApiResponse(data=result.model_dump())
+    except Exception as exc:
+        logger.exception("checkpoint demo failed", extra={"thread_id": payload.thread_id})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to run checkpoint demo",
+        ) from exc
+
+
+@router.post("/demo/conditional-route", response_model=ApiResponse)
+async def demo_conditional_route(
+    payload: LangGraphConditionalDemoRequest,
+    service: Annotated[LangGraphDemoService, Depends(get_langgraph_demo_service)],
+) -> ApiResponse:
+    """Route to different LLM nodes using ``add_conditional_edges`` (no checkpoint)."""
+    try:
+        data = await service.run_conditional_branch(payload.input_text)
+        result = LangGraphConditionalDemoResult(**data)
+        return ApiResponse(data=result.model_dump())
+    except Exception as exc:
+        logger.exception("conditional-route demo failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to run conditional-route demo",
+        ) from exc
+
+
+@router.post("/demo/react-agent", response_model=ApiResponse)
+async def demo_react_agent(
+    payload: LangGraphReactDemoRequest,
+    service: Annotated[LangGraphDemoService, Depends(get_langgraph_demo_service)],
+) -> ApiResponse:
+    """Prebuilt ReAct loop via ``create_react_agent`` (same demo tools as ``tool_agent``)."""
+    try:
+        data = await service.run_react_agent(payload.input_text)
+        result = LangGraphReactDemoResult(**data)
+        return ApiResponse(data=result.model_dump())
+    except Exception as exc:
+        logger.exception("react-agent demo failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to run react-agent demo",
         ) from exc
 
 

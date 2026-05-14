@@ -46,6 +46,11 @@ class LlmClient:
             init_kwargs["base_url"] = effective_base
         self._llm = ReasoningEchoChatOpenAI(**init_kwargs)
 
+    @property
+    def chat_model(self) -> ReasoningEchoChatOpenAI:
+        """Underlying chat model for LangGraph prebuilt graphs and direct ``ainvoke``."""
+        return self._llm
+
     async def ask(self, system_prompt: str, user_input: str) -> str:
         response = await self._llm.ainvoke(
             [

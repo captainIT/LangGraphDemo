@@ -51,6 +51,40 @@ Content-Type: {{contentType}}
   "input_text": "Create a short launch plan for an AI chatbot and output in English."
 }
 
+### LangGraph — checkpoint (same thread_id = same conversation)
+POST {{baseUrl}}/api/v1/agents/demo/checkpoint
+Content-Type: {{contentType}}
+
+{
+  "thread_id": "http-demo-1",
+  "input_text": "My codename is Bluejay. Acknowledge in one sentence."
+}
+
+### LangGraph — checkpoint (follow-up; reuse thread_id)
+POST {{baseUrl}}/api/v1/agents/demo/checkpoint
+Content-Type: {{contentType}}
+
+{
+  "thread_id": "http-demo-1",
+  "input_text": "What was my codename?"
+}
+
+### LangGraph — conditional route (math vs general)
+POST {{baseUrl}}/api/v1/agents/demo/conditional-route
+Content-Type: {{contentType}}
+
+{
+  "input_text": "Calculate 12.5 + 7.3 in one line."
+}
+
+### LangGraph — prebuilt ReAct agent
+POST {{baseUrl}}/api/v1/agents/demo/react-agent
+Content-Type: {{contentType}}
+
+{
+  "input_text": "What time is it in UTC? Then add 3 and 5."
+}
+
 ### List tools (direct backend calls, no LLM)
 GET {{baseUrl}}/api/v1/tools
 Accept: {{contentType}}
