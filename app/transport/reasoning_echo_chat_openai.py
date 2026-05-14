@@ -11,7 +11,7 @@ from langchain_openai import ChatOpenAI
 class ReasoningEchoChatOpenAI(ChatOpenAI):
     """Preserve ``reasoning_content`` / ``reasoning_details`` across tool-calling turns.
 
-    LangChain's default chat-completions path drops provider-specific assistant fields
+    The default ChatOpenAI chat-completions path drops provider-specific assistant fields
     when building ``AIMessage`` and when serializing history. Some compatible endpoints
     (thinking / reasoning mode) reject the follow-up request unless those fields are
     echoed back unchanged.

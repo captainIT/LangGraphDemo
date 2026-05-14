@@ -22,7 +22,7 @@ Content-Type: {{contentType}}
 
 {
   "agent_type": "summary_agent",
-  "input_text": "LangChain makes it easier to build LLM-powered applications."
+  "input_text": "LangGraph helps you build stateful, multi-step LLM workflows."
 }
 
 ### Run agent — tool_agent (LLM may call tools; response has no tool trace)
@@ -31,7 +31,7 @@ Content-Type: {{contentType}}
 
 {
   "agent_type": "tool_agent",
-  "input_text": "Add 12.5 and 7.3, then slugify: LangChain Tool Calling Demo"
+  "input_text": "Add 12.5 and 7.3, then slugify: LangGraph Tool Calling Demo"
 }
 
 ### Run agent with trace — tool_agent (returns tool_calls in response)
@@ -40,7 +40,7 @@ Content-Type: {{contentType}}
 
 {
   "agent_type": "tool_agent",
-  "input_text": "What time is it in UTC? Count words in: LangChain tool call demo"
+  "input_text": "What time is it in UTC? Count words in: LangGraph tool call demo"
 }
 
 ### Collaborative workflow

@@ -19,7 +19,7 @@ def _dotenv_files() -> tuple[str, ...] | None:
 
 
 class Settings(BaseSettings):
-    app_name: str = "LangGraph Multi Agent Demo"
+    app_name: str = "LangGraph Demo"
     log_level: str = "INFO"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
