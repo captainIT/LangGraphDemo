@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LangChain Demo — LLM &amp; Function Calling</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4f;
+      --text: #e7ecf3;
+      --muted: #8b9cb3;
+      --accent: #5b9fd4;
+      --accent-dim: #3d7eae;
+      --success: #6bcb77;
+      --warn: #e8c547;
+      --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+      --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--sans);
+      background: radial-gradient(ellipse 120% 80% at 50% -20%, #1e3a5f 0%, var(--bg) 55%);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(26, 35, 50, 0.85);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    header p {
+      margin: 0.35rem 0 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.35rem;
+    }
+    section h2 {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    textarea, select, input[type="text"] {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 0.9rem;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: flex-end;
+      margin-bottom: 0.75rem;
+    }
+    .row > * { flex: 1; min-width: 140px; }
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: var(--sans);
+      background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dim) 100%);
+      color: #fff;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    button:hover:not(:disabled) { opacity: 0.92; }
+    button:active:not(:disabled) { transform: scale(0.98); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.secondary {
+      background: var(--border);
+      color: var(--text);
+    }
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .tag {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .output {
+      margin-top: 0.75rem;
+      padding: 0.85rem 1rem;
+      border-radius: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 2.5rem;
+    }
+    .output.empty { color: var(--muted); font-style: italic; }
+    .error {
+      margin-top: 0.5rem;
+      color: #f08080;
+      font-size: 0.85rem;
+    }
+    .tool-chain {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      margin-top: 0.75rem;
+    }
+    .tool-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 0.85rem;
+      background: var(--bg);
+      border-left: 3px solid var(--warn);
+    }
+    .tool-card h3 {
+      margin: 0 0 0.35rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--warn);
+      font-family: var(--mono);
+    }
+    .tool-card pre {
+      margin: 0.35rem 0 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .tool-card .result {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px dashed var(--border);
+      color: var(--success);
+      font-size: 0.8rem;
+      font-family: var(--mono);
+    }
+    .hint { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; }
+    .stream-box {
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    footer {
+      text-align: center;
+      padding: 1rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LangChain Demo</h1>
+    <p>LLM agents, streaming, and function calling (tool traces) against this service.</p>
+  </header>
+  <main>
+    <section id="sec-health">
+      <h2>Service</h2>
+      <p class="hint" id="health-status">Checking health…</p>
+    </section>
+
+    <section id="sec-agents">
+      <h2>Registered agents</h2>
+      <div class="tags" id="agent-tags"></div>
+      <p class="hint" id="agents-hint"></p>
+    </section>
+
+    <section id="sec-run">
+      <h2>Run agent (LLM)</h2>
+      <div class="row">
+        <div>
+          <label for="agent-type">Agent type</label>
+          <select id="agent-type"></select>
+        </div>
+      </div>
+      <label for="run-input">Input</label>
+      <textarea id="run-input" placeholder="Ask a question, paste text to summarize, etc."></textarea>
+      <div class="row" style="margin-top: 0.75rem;">
+        <button type="button" id="btn-run">Run agent</button>
+      </div>
+      <div class="output empty" id="run-output">Response will appear here.</div>
+      <div class="error" id="run-error" hidden></div>
+    </section>
+
+    <section id="sec-trace">
+      <h2>Function calling with trace</h2>
+      <p class="hint">Uses <code>tool_agent</code> and <code>POST /api/v1/agents/run-with-trace</code>. Shows each tool invocation the model requested.</p>
+      <label for="trace-input">Task (time, math, word count, slugify, etc.)</label>
+      <textarea id="trace-input" placeholder="e.g. What time is it in UTC? Add 10 and 32. Slugify: Hello World Demo"></textarea>
+      <div class="row" style="margin-top: 0.75rem;">
+        <button type="button" id="btn-trace">Run with tool trace</button>
+      </div>
+      <div class="tool-chain" id="tool-chain"></div>
+      <label style="margin-top: 0.75rem;">Final answer</label>
+      <div class="output empty" id="trace-output">Tool calls and answer will appear here.</div>
+      <div class="error" id="trace-error" hidden></div>
+    </section>
+
+    <section id="sec-stream">
+      <h2>Stream tokens (WebSocket)</h2>
+      <p class="hint">Connects to <code>/api/v1/agents/ws</code> and streams model chunks for the selected agent type.</p>
+      <div class="row">
+        <div>
+          <label for="stream-agent">Agent type</label>
+          <select id="stream-agent"></select>
+        </div>
+      </div>
+      <label for="stream-input">Input</label>
+      <textarea id="stream-input" rows="3" placeholder="Short prompt for streaming demo"></textarea>
+      <div class="row" style="margin-top: 0.75rem;">
+        <button type="button" id="btn-stream">Start stream</button>
+        <button type="button" class="secondary" id="btn-stream-stop" disabled>Stop</button>
+      </div>
+      <div class="output stream-box empty" id="stream-output">Streamed text appears here.</div>
+      <div class="error" id="stream-error" hidden></div>
+    </section>
+
+    <section id="sec-workflow">
+      <h2>Collaborative workflow</h2>
+      <p class="hint"><code>POST /api/v1/agents/workflow</code> — multi-step graph, final consolidated output.</p>
+      <label for="wf-input">Goal</label>
+      <textarea id="wf-input" rows="3" placeholder="Describe a small planning or writing task…"></textarea>
+      <div class="row" style="margin-top: 0.75rem;">
+        <button type="button" id="btn-workflow">Run workflow</button>
+      </div>
+      <label>Steps</label>
+      <div class="output empty" id="wf-steps">—</div>
+      <label style="margin-top: 0.75rem;">Output</label>
+      <div class="output empty" id="wf-output">—</div>
+      <div class="error" id="wf-error" hidden></div>
+    </section>
+
+    <section id="sec-tools">
+      <h2>Direct tool API (no LLM)</h2>
+      <p class="hint">List and invoke tools the same way the model would, for comparison.</p>
+      <div class="tags" id="tool-tags"></div>
+      <div class="row" style="margin-top: 0.75rem;">
+        <div>
+          <label for="tool-name">tool_name</label>
+          <input type="text" id="tool-name" placeholder="add_numbers" />
+        </div>
+      </div>
+      <label for="tool-args">arguments (JSON object)</label>
+      <textarea id="tool-args" rows="4" placeholder='{ "a": 12.5, "b": 7.3 }'></textarea>
+      <div class="row" style="margin-top: 0.75rem;">
+        <button type="button" id="btn-tool-exec">Execute tool</button>
+      </div>
+      <div class="output empty" id="tool-result">Result will appear here.</div>
+      <div class="error" id="tool-error" hidden></div>
+    </section>
+  </main>
+  <footer>Open this page from the API server: <code>/ui/</code> (same origin).</footer>
+
+  <script>
+    const api = (path) => `${location.origin}${path}`;
+
+    function showError(el, msg) {
+      el.textContent = msg;
+      el.hidden = !msg;
+    }
+
+    async function fetchJson(path, options) {
+      const res = await fetch(api(path), {
+        ...options,
+        headers: { "Content-Type": "application/json", Accept: "application/json", ...(options?.headers || {}) },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = body.detail || body.message || res.statusText;
+        throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+      }
+      return body;
+    }
+
+    async function initHealth() {
+      const el = document.getElementById("health-status");
+      try {
+        const j = await fetchJson("/health", { method: "GET" });
+        el.textContent = j.success ? `Healthy — ${JSON.stringify(j.data)}` : JSON.stringify(j);
+        el.style.color = "var(--success)";
+      } catch (e) {
+        el.textContent = "Health check failed: " + e.message;
+        el.style.color = "#f08080";
+      }
+    }
+
+    async function initAgents() {
+      const tags = document.getElementById("agent-tags");
+      const hint = document.getElementById("agents-hint");
+      const typeSelect = document.getElementById("agent-type");
+      const streamSelect = document.getElementById("stream-agent");
+      try {
+        const j = await fetchJson("/api/v1/agents", { method: "GET" });
+        const list = (j.data && j.data.agents) || [];
+        tags.innerHTML = list.map((a) => `<span class="tag">${a}</span>`).join("");
+        hint.textContent = list.length ? `${list.length} agent types from GET /api/v1/agents` : "No agents returned.";
+        typeSelect.innerHTML = list.map((a) => `<option value="${a}">${a}</option>`).join("");
+        streamSelect.innerHTML = typeSelect.innerHTML;
+      } catch (e) {
+        hint.textContent = e.message;
+      }
+    }
+
+    async function initTools() {
+      const tags = document.getElementById("tool-tags");
+      try {
+        const j = await fetchJson("/api/v1/tools", { method: "GET" });
+        const list = (j.data && j.data.tools) || [];
+        tags.innerHTML = list.map((t) => `<span class="tag">${t}</span>`).join("");
+      } catch (e) {
+        tags.innerHTML = `<span class="tag">failed to load</span>`;
+      }
+    }
+
+    document.getElementById("btn-run").addEventListener("click", async () => {
+      const out = document.getElementById("run-output");
+      const err = document.getElementById("run-error");
+      const btn = document.getElementById("btn-run");
+      err.hidden = true;
+      const input = document.getElementById("run-input").value.trim();
+      const agent_type = document.getElementById("agent-type").value;
+      if (!input) {
+        showError(err, "Input is required.");
+        return;
+      }
+      btn.disabled = true;
+      out.classList.remove("empty");
+      out.textContent = "Running…";
+      try {
+        const j = await fetchJson("/api/v1/agents/run", {
+          method: "POST",
+          body: JSON.stringify({ agent_type, input_text: input }),
+        });
+        const text = (j.data && j.data.output_text) || JSON.stringify(j.data, null, 2);
+        out.textContent = text;
+      } catch (e) {
+        out.textContent = "";
+        out.classList.add("empty");
+        showError(err, e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("btn-trace").addEventListener("click", async () => {
+      const out = document.getElementById("trace-output");
+      const chain = document.getElementById("tool-chain");
+      const err = document.getElementById("trace-error");
+      const btn = document.getElementById("btn-trace");
+      err.hidden = true;
+      const input = document.getElementById("trace-input").value.trim();
+      if (!input) {
+        showError(err, "Input is required.");
+        return;
+      }
+      btn.disabled = true;
+      chain.innerHTML = "";
+      out.classList.remove("empty");
+      out.textContent = "Running with trace…";
+      try {
+        const j = await fetchJson("/api/v1/agents/run-with-trace", {
+          method: "POST",
+          body: JSON.stringify({ agent_type: "tool_agent", input_text: input }),
+        });
+        const data = j.data || {};
+        const calls = data.tool_calls || [];
+        if (!calls.length) {
+          chain.innerHTML = '<p class="hint">No tool calls in this response (model answered without tools).</p>';
+        } else {
+          chain.innerHTML = calls
+            .map(
+              (c, i) => `
+            <div class="tool-card">
+              <h3>#${i + 1} — ${escapeHtml(c.tool_name || "")}</h3>
+              <pre>arguments: ${escapeHtml(JSON.stringify(c.arguments, null, 2))}</pre>
+              <div class="result">${escapeHtml(String(c.result ?? ""))}</div>
+            </div>`
+            )
+            .join("");
+        }
+        out.textContent = data.output_text || JSON.stringify(data, null, 2);
+      } catch (e) {
+        out.textContent = "";
+        out.classList.add("empty");
+        showError(err, e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    function escapeHtml(s) {
+      return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    let ws = null;
+    document.getElementById("btn-stream").addEventListener("click", () => {
+      const out = document.getElementById("stream-output");
+      const err = document.getElementById("stream-error");
+      const btnGo = document.getElementById("btn-stream");
+      const btnStop = document.getElementById("btn-stream-stop");
+      err.hidden = true;
+      const input = document.getElementById("stream-input").value.trim();
+      const agent_type = document.getElementById("stream-agent").value;
+      if (!input) {
+        showError(err, "Input is required.");
+        return;
+      }
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      const url = `${proto}//${location.host}/api/v1/agents/ws`;
+      out.classList.remove("empty");
+      out.textContent = "";
+      btnGo.disabled = true;
+      btnStop.disabled = false;
+      ws = new WebSocket(url);
+      ws.addEventListener("open", () => {
+        ws.send(JSON.stringify({ agent_type, input_text: input }));
+      });
+      ws.addEventListener("message", (ev) => {
+        let msg;
+        try {
+          msg = JSON.parse(ev.data);
+        } catch {
+          return;
+        }
+        if (msg.event === "chunk" && msg.content) out.textContent += msg.content;
+        if (msg.event === "error") showError(err, msg.message || "Stream error");
+        if (msg.event === "end") {
+          btnGo.disabled = false;
+          btnStop.disabled = true;
+        }
+      });
+      ws.addEventListener("close", () => {
+        btnGo.disabled = false;
+        btnStop.disabled = true;
+        ws = null;
+      });
+      ws.addEventListener("error", () => {
+        showError(err, "WebSocket error");
+        btnGo.disabled = false;
+        btnStop.disabled = true;
+      });
+    });
+    document.getElementById("btn-stream-stop").addEventListener("click", () => {
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+      document.getElementById("btn-stream").disabled = false;
+      document.getElementById("btn-stream-stop").disabled = true;
+    });
+
+    document.getElementById("btn-workflow").addEventListener("click", async () => {
+      const stepsEl = document.getElementById("wf-steps");
+      const outEl = document.getElementById("wf-output");
+      const err = document.getElementById("wf-error");
+      const btn = document.getElementById("btn-workflow");
+      err.hidden = true;
+      const input = document.getElementById("wf-input").value.trim();
+      if (!input) {
+        showError(err, "Input is required.");
+        return;
+      }
+      btn.disabled = true;
+      stepsEl.classList.remove("empty");
+      outEl.classList.remove("empty");
+      stepsEl.textContent = "Running…";
+      outEl.textContent = "…";
+      try {
+        const j = await fetchJson("/api/v1/agents/workflow", {
+          method: "POST",
+          body: JSON.stringify({ input_text: input }),
+        });
+        const data = j.data || {};
+        const steps = data.steps || [];
+        stepsEl.textContent = steps.length ? steps.map((s, i) => `${i + 1}. ${s}`).join("\n") : "(no steps)";
+        outEl.textContent = data.output_text || "";
+      } catch (e) {
+        stepsEl.textContent = "";
+        outEl.textContent = "";
+        showError(err, e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("btn-tool-exec").addEventListener("click", async () => {
+      const out = document.getElementById("tool-result");
+      const err = document.getElementById("tool-error");
+      const btn = document.getElementById("btn-tool-exec");
+      err.hidden = true;
+      const tool_name = document.getElementById("tool-name").value.trim();
+      let arguments_;
+      try {
+        arguments_ = JSON.parse(document.getElementById("tool-args").value || "{}");
+      } catch {
+        showError(err, "arguments must be valid JSON.");
+        return;
+      }
+      if (!tool_name) {
+        showError(err, "tool_name is required.");
+        return;
+      }
+      btn.disabled = true;
+      out.classList.remove("empty");
+      out.textContent = "Executing…";
+      try {
+        const j = await fetchJson("/api/v1/tools", {
+          method: "POST",
+          body: JSON.stringify({ tool_name, arguments: arguments_ }),
+        });
+        out.textContent = JSON.stringify(j.data, null, 2);
+      } catch (e) {
+        out.textContent = "";
+        out.classList.add("empty");
+        showError(err, e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    initHealth();
+    initAgents();
+    initTools();
+  </script>
+</body>
+</html>

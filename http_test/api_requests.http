@@ -1,0 +1,74 @@
+# Install "REST Client" (humao.rest-client), then use "Send Request" above each block.
+#
+# Cursor: the HTML response side panel often stays blank (github.com/Huachao/vscode-restclient/issues/1434).
+# This workspace sets rest-client.previewResponseInUntitledDocument so the response opens in an editor tab
+# where you can read it and use Save Full Response / Save Response Body in the tab toolbar.
+# Workaround if you still use the HTML panel: split the editor (Cmd+\ on macOS) before sending.
+
+@baseUrl = http://127.0.0.1:8000
+@contentType = application/json
+
+### Health check
+GET {{baseUrl}}/health
+Accept: {{contentType}}
+
+### List agents
+GET {{baseUrl}}/api/v1/agents
+Accept: {{contentType}}
+
+### Run agent — summary
+POST {{baseUrl}}/api/v1/agents/run
+Content-Type: {{contentType}}
+
+{
+  "agent_type": "summary_agent",
+  "input_text": "LangChain makes it easier to build LLM-powered applications."
+}
+
+### Run agent — tool_agent (LLM may call tools; response has no tool trace)
+POST {{baseUrl}}/api/v1/agents/run
+Content-Type: {{contentType}}
+
+{
+  "agent_type": "tool_agent",
+  "input_text": "Add 12.5 and 7.3, then slugify: LangChain Tool Calling Demo"
+}
+
+### Run agent with trace — tool_agent (returns tool_calls in response)
+POST {{baseUrl}}/api/v1/agents/run-with-trace
+Content-Type: {{contentType}}
+
+{
+  "agent_type": "tool_agent",
+  "input_text": "What time is it in UTC? Count words in: LangChain tool call demo"
+}
+
+### Collaborative workflow
+POST {{baseUrl}}/api/v1/agents/workflow
+Content-Type: {{contentType}}
+
+{
+  "input_text": "Create a short launch plan for an AI chatbot and output in English."
+}
+
+### List tools (direct backend calls, no LLM)
+GET {{baseUrl}}/api/v1/tools
+Accept: {{contentType}}
+
+### Execute tool — add_numbers
+POST {{baseUrl}}/api/v1/tools
+Content-Type: {{contentType}}
+
+{
+  "tool_name": "add_numbers",
+  "arguments": { "a": 12.5, "b": 7.3 }
+}
+
+### Execute tool — count_words
+POST {{baseUrl}}/api/v1/tools
+Content-Type: {{contentType}}
+
+{
+  "tool_name": "count_words",
+  "arguments": { "text": "one two three four" }
+}
