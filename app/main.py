@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.agent_router import router as agent_router
+from app.api.mcp_router import router as mcp_router
 from app.api.tool_router import router as tool_router
 from app.config import get_settings
 from app.schemas.common import ApiResponse
@@ -22,6 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(agent_router)
+app.include_router(mcp_router)
 app.include_router(tool_router)
 
 _static_dir = Path(__file__).resolve().parent.parent / "static"

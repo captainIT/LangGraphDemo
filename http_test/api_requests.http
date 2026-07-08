@@ -106,3 +106,36 @@ Content-Type: {{contentType}}
   "tool_name": "count_words",
   "arguments": { "text": "one two three four" }
 }
+
+### MCP — list configured servers
+GET {{baseUrl}}/api/v1/mcp/servers
+Accept: {{contentType}}
+
+### MCP — discover tools from all stdio servers
+GET {{baseUrl}}/api/v1/mcp/tools
+Accept: {{contentType}}
+
+### MCP — invoke tool (prefixed name when MCP_TOOL_NAME_PREFIX=true)
+POST {{baseUrl}}/api/v1/mcp/tools/invoke
+Content-Type: {{contentType}}
+
+{
+  "tool_name": "math_add_numbers",
+  "arguments": { "a": 12.5, "b": 7.3 }
+}
+
+### MCP — full-flow test (connect → list tools → sample invocations)
+POST {{baseUrl}}/api/v1/mcp/demo/full-flow
+Content-Type: {{contentType}}
+
+{
+  "include_tool_invocations": true
+}
+
+### MCP — single-server full-flow test (math)
+POST {{baseUrl}}/api/v1/mcp/demo/server/math
+Content-Type: {{contentType}}
+
+{
+  "include_tool_invocations": true
+}

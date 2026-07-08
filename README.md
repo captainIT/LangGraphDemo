@@ -1,6 +1,16 @@
 # LangGraph Demo
 
-> **这是最好的 LangGraph 简单实践项目**：用极少的业务代码把 LangGraph 的「状态图 → 编译 → 异步执行」跑通，适合入门与团队内部分享。
+[中文](README.zh-CN.md) | **English**
+
+> **A minimal LangGraph hands-on project**: run the full loop of **state graph → compile → async invoke** with very little business code—ideal for getting started and sharing within a team.
+
+## Project Purpose
+
+This repository is a **LangGraph learning and practice** starter: it demonstrates core capabilities—state graphs, nodes and edges, reducers, checkpointing, conditional routing, ReAct agents, and more—with minimal business logic, plus a clear FastAPI layering (`api / service / transport / schemas`).
+
+Future production projects can **use this repo as a starting template**—keep the layered structure and LangGraph integration patterns, then extend agents, workflows, and business logic without scaffolding from scratch.
+
+---
 
 A minimal FastAPI + LangGraph demo project with 5 simple agents:
 
@@ -75,7 +85,38 @@ Other routes (`/run`, `/run-with-trace`, `/ws`, `/tools`, etc.) use **LangChain*
 
 For the collaborative workflow node logic, open `app/transport/collaborative_workflow_graph.py`.
 
-## 6. API Endpoints
+## 6. MCP (Model Context Protocol)
+
+This project ships **3 stdio MCP server modules**, wired through `langchain-mcp-adapters` `MultiServerMCPClient` for tool discovery and invocation:
+
+| MCP Server | Tools |
+|------------|-------|
+| `math` | `add_numbers`, `multiply_numbers` |
+| `time` | `get_current_utc_time` |
+| `text` | `count_words`, `slugify_text` |
+
+Layering:
+
+- `app/transport/mcp/servers/` — standalone MCP server scripts (runnable via `python ..._server.py` with stdio)
+- `app/transport/mcp/registry.py` — server registry and stdio connection config
+- `app/transport/mcp_client.py` — MCP client transport
+- `app/service/mcp_service.py` — discovery, invocation, full-flow orchestration
+- `app/api/mcp_router.py` — HTTP test endpoints
+
+With default `MCP_TOOL_NAME_PREFIX=true`, tool names are prefixed by server (e.g. `math_add_numbers`) to avoid collisions across servers.
+
+### Full-flow test endpoint
+
+`POST /api/v1/mcp/demo/full-flow` runs:
+
+1. Resolve and connect all (or selected) MCP servers
+2. Discover tools
+3. Invoke sample tools per server
+4. Return `steps` trace and `invocations` results
+
+Per-server test: `POST /api/v1/mcp/demo/server/{server_name}`
+
+## 7. API Endpoints
 
 - `GET /health`
 - `GET /api/v1/agents`
@@ -88,6 +129,11 @@ For the collaborative workflow node logic, open `app/transport/collaborative_wor
 - `WS /api/v1/agents/ws`
 - `GET /api/v1/tools`
 - `POST /api/v1/tools`
+- `GET /api/v1/mcp/servers`
+- `GET /api/v1/mcp/tools`
+- `POST /api/v1/mcp/tools/invoke`
+- `POST /api/v1/mcp/demo/full-flow` **(MCP full-flow test)**
+- `POST /api/v1/mcp/demo/server/{server_name}` **(single MCP server full-flow test)**
 
 Example request:
 
@@ -171,6 +217,25 @@ curl -X POST "http://127.0.0.1:8000/api/v1/agents/demo/react-agent" \
   -d '{"input_text": "What UTC time is it? Then add 10 and 32."}'
 ```
 
+MCP full-flow test (connect → discover tools → sample invocations):
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/mcp/demo/full-flow" \
+  -H "Content-Type: application/json" \
+  -d '{"include_tool_invocations": true}'
+```
+
+MCP single tool invocation (prefixed name by default):
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/mcp/tools/invoke" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tool_name": "math_add_numbers",
+    "arguments": {"a": 12.5, "b": 7.3}
+  }'
+```
+
 WebSocket stream payload example:
 
 ```json
@@ -180,14 +245,14 @@ WebSocket stream payload example:
 }
 ```
 
-## 7. Project Structure
+## 8. Project Structure
 
 ```text
 app/
   api/          # FastAPI routers
   service/      # Business services
-  transport/    # LLM communication layer
+  transport/    # LLM / MCP communication layer
+    mcp/        # MCP server modules and registry
   schemas/      # Request/response models
   utils/        # Utility helpers
 ```
-

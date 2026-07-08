@@ -27,6 +27,15 @@ class Settings(BaseSettings):
         default=None,
         description="OpenAI-compatible API base URL (proxy, Azure, etc.); omit for api.openai.com",
     )
+    mcp_timeout_seconds: float = Field(
+        default=30.0,
+        ge=1.0,
+        description="Timeout for MCP discovery and tool invocation",
+    )
+    mcp_tool_name_prefix: bool = Field(
+        default=True,
+        description="Prefix MCP tool names with server name to avoid collisions",
+    )
 
     @field_validator("openai_base_url", mode="before")
     @classmethod
