@@ -2,13 +2,30 @@
 
 **中文** | [English](README.md)
 
-> **最好的 LangGraph 简单实践项目**：用极少的业务代码把 LangGraph 的「状态图 → 编译 → 异步执行」跑通，适合入门与团队内部分享。
+> **最好的多 Agent 实践项目**：LangGraph 工作流、MCP 工具服务与 A2A Agent 端点集成于同一 FastAPI 应用，适合入门与团队内部分享。
 
 ## 项目目的
 
-本项目旨在成为 **LangGraph 学习与实战** 的入门样板：用最小化的业务代码跑通 LangGraph 的核心能力（状态图、节点与边、Reducer、检查点、条件路由、ReAct Agent 等），并配合 FastAPI 提供清晰的 API 分层结构（`api / service / transport / schemas`）。
+本项目是一个 **LangGraph + MCP + A2A 学习样板**，涵盖：
 
-后续的正式业务项目可以**以此仓库作为起始模版**——保留上述分层与 LangGraph 集成方式，在此基础上扩展 Agent、工作流与业务逻辑，而无需从零搭建工程骨架。
+- **LangGraph** — 状态图、Reducer、检查点、条件路由、ReAct Agent
+- **MCP** — stdio 工具 Server、发现与调用（`langchain-mcp-adapters`）
+- **A2A** — Agent Card、JSON-RPC 消息与任务生命周期（`a2a-sdk`）
+
+所有能力共用同一套 FastAPI 分层（`api / service / transport / schemas`），业务逻辑保持精简。
+
+后续的正式业务项目可以**以此仓库作为起始模版**——保留上述分层与集成方式，在此基础上扩展 Agent、工作流与业务逻辑，而无需从零搭建工程骨架。
+
+### 能力概览
+
+| 模块 | 内容 | 主要入口 |
+|------|------|----------|
+| **LangGraph** | 有状态工作流与图演示 | `POST /api/v1/agents/workflow`、`/demo/*` |
+| **LangChain Agent** | 5 个简单 LLM Agent + 工具调用 | `POST /api/v1/agents/run` |
+| **MCP** | 3 个 stdio Server，工具发现与调用 | `GET /api/v1/mcp/tools`、`/demo/full-flow` |
+| **A2A** | 2 个协议兼容 Agent（`echo`、`qa`） | Agent Card + `/api/v1/a2a/demo/full-flow` |
+
+> **MCP 与 A2A**：MCP 面向 *工具* 暴露给 LLM/Agent 运行时；A2A 面向 *Agent* 实现跨框架互通。本项目同时包含两者。
 
 ---
 
@@ -47,7 +64,24 @@ uv sync
 cp .env.example .env
 ```
 
-在 `.env` 中填写 `OPENAI_API_KEY`。
+按需编辑 `.env`，常用变量如下：
+
+| 变量 | 是否必填 | 默认值 | 说明 |
+|------|----------|--------|------|
+| `OPENAI_API_KEY` | LLM 相关路由需要 | — | OpenAI 或兼容服务的 API Key |
+| `OPENAI_MODEL` | 否 | `gpt-4o-mini` | 模型名称 |
+| `OPENAI_BASE_URL` | 否 | — | 兼容 API 地址（如 DeepSeek、Azure） |
+| `APP_NAME` | 否 | `LangGraph Demo` | FastAPI 应用标题 |
+| `SERVER_HOST` | 否 | `127.0.0.1` | Uvicorn/FastAPI 绑定地址 |
+| `SERVER_PORT` | 否 | `8000` | Uvicorn/FastAPI 绑定端口 |
+| `LOG_LEVEL` | 否 | `INFO` | 日志级别 |
+| `MCP_TIMEOUT_SECONDS` | 否 | `30` | MCP 发现 / 调用超时 |
+| `MCP_TOOL_NAME_PREFIX` | 否 | `true` | 工具名是否带 server 前缀 |
+| `A2A_PUBLIC_BASE_URL` | 否 | `http://127.0.0.1:8000` | 写入 A2A Agent Card 的公网地址 |
+| `A2A_TIMEOUT_SECONDS` | 否 | `60` | A2A 拉 Card / 发消息超时 |
+
+未配置 `OPENAI_API_KEY` 时，LangGraph LLM 演示、`qa` A2A Agent 及大部分 `/agents/run` 不可用；`echo` A2A Agent 与 MCP 演示仍可运行。
+请确保 `A2A_PUBLIC_BASE_URL` 与 `SERVER_HOST` + `SERVER_PORT` 一致，避免 Agent Card 自调用地址不匹配。
 
 ## 4. 运行
 
@@ -55,7 +89,16 @@ cp .env.example .env
 uv run uvicorn app.main:app --reload
 ```
 
+也可使用（读取配置中的 `SERVER_HOST` / `SERVER_PORT`）：
+
+```bash
+uv run python -m app.main
+```
+
 若已执行 `source .venv/bin/activate`，也可直接运行 `uvicorn app.main:app --reload`。
+
+- **OpenAPI 文档**：[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)（含 A2A 协议路由）
+- **HTTP 测试**：`http_test/api_requests.http`（VS Code / Cursor REST Client）
 
 ## 5. 本项目中的 LangGraph
 
@@ -116,7 +159,44 @@ uv run uvicorn app.main:app --reload
 
 单 Server 测试：`POST /api/v1/mcp/demo/server/{server_name}`
 
-## 7. API 端点
+## 7. A2A（Agent-to-Agent Protocol）
+
+本项目通过官方 [`a2a-sdk`](https://github.com/a2aproject/a2a-python) 暴露 **2 个内置 A2A Demo Agent**，并挂载到 FastAPI：
+
+| A2A Agent | 路径 | 说明 |
+|-----------|------|------|
+| `echo` | `/a2a/echo/` | 回显用户输入，演示标准 A2A 任务生命周期 |
+| `qa` | `/a2a/qa/` | LLM 问答 Agent（需配置 `OPENAI_API_KEY`） |
+
+每个 Agent 在其路径下发布 **Agent Card**（`/.well-known/agent-card.json`），并通过 **JSON-RPC** 接收 `message/send` 请求。
+
+分层位置：
+
+- `app/transport/a2a/executors/` — `AgentExecutor` 实现
+- `app/transport/a2a/registry.py` — Agent 注册与示例消息
+- `app/transport/a2a/server_setup.py` — 在 FastAPI 上挂载 A2A 路由
+- `app/transport/a2a_client.py` — A2A Client 传输层
+- `app/service/a2a_service.py` — 发现、发消息、全流程测试编排
+- `app/api/a2a_router.py` — HTTP 测试接口
+
+请配置 `A2A_PUBLIC_BASE_URL`（默认 `http://127.0.0.1:8000`），以便 Agent Card 与客户端自调用解析正确。若使用其他 host/port，测试前请先更新该值。
+
+各 Executor 遵循 A2A 任务生命周期：`submit → working → artifact → completed`（见 `app/transport/a2a/task_helpers.py`）。
+
+### 全流程测试接口
+
+`POST /api/v1/a2a/demo/full-flow` 会依次执行：
+
+1. 解析已挂载的 Agent
+2. 拉取各 Agent Card
+3. 通过 A2A Client 发送示例消息
+4. 返回 `steps` 追踪与 `messages` 结果
+
+单消息测试：`POST /api/v1/a2a/demo/message`
+
+## 8. API 端点
+
+### 健康检查与 Agent
 
 - `GET /health`
 - `GET /api/v1/agents`
@@ -127,13 +207,30 @@ uv run uvicorn app.main:app --reload
 - `POST /api/v1/agents/demo/conditional-route` **（LangGraph 条件边）**
 - `POST /api/v1/agents/demo/react-agent` **（LangGraph `create_react_agent`）**
 - `WS /api/v1/agents/ws`
+
+### 工具
+
 - `GET /api/v1/tools`
 - `POST /api/v1/tools`
+
+### MCP
+
 - `GET /api/v1/mcp/servers`
 - `GET /api/v1/mcp/tools`
 - `POST /api/v1/mcp/tools/invoke`
 - `POST /api/v1/mcp/demo/full-flow` **（MCP 全流程测试）**
 - `POST /api/v1/mcp/demo/server/{server_name}` **（单 MCP Server 全流程测试）**
+
+### A2A
+
+- `GET /api/v1/a2a/agents`
+- `GET /api/v1/a2a/agents/{agent_name}/card`
+- `POST /api/v1/a2a/demo/message` **（A2A 单消息测试）**
+- `POST /api/v1/a2a/demo/full-flow` **（A2A 全流程测试）**
+- `GET /a2a/echo/.well-known/agent-card.json` **（A2A Agent Card — echo）**
+- `POST /a2a/echo/` **（A2A JSON-RPC — echo）**
+- `GET /a2a/qa/.well-known/agent-card.json` **（A2A Agent Card — qa）**
+- `POST /a2a/qa/` **（A2A JSON-RPC — qa）**
 
 基础请求示例：
 
@@ -236,6 +333,22 @@ curl -X POST "http://127.0.0.1:8000/api/v1/mcp/tools/invoke" \
   }'
 ```
 
+A2A echo Agent 单消息测试：
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/a2a/demo/message" \
+  -H "Content-Type: application/json" \
+  -d '{"agent_name": "echo", "input_text": "hello a2a"}'
+```
+
+A2A 全流程测试（拉取 Agent Card → 发送示例消息）：
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/a2a/demo/full-flow" \
+  -H "Content-Type: application/json" \
+  -d '{"use_sample_messages": true}'
+```
+
 WebSocket 流式请求体示例：
 
 ```json
@@ -245,14 +358,45 @@ WebSocket 流式请求体示例：
 }
 ```
 
-## 8. 项目结构
+## 9. 统一错误响应
+
+所有路由返回统一包裹结构（`ApiResponse`）。请求失败时，全局异常处理会映射为：
+
+```json
+{
+  "success": false,
+  "message": "request_failed",
+  "data": {},
+  "error": {
+    "code": "bad_request",
+    "detail": "Detailed reason"
+  }
+}
+```
+
+常见 `message` 值：
+
+- `request_failed`（HTTP 异常，如 400/404）
+- `validation_failed`（请求体/参数校验失败）
+- `internal_server_error`（服务端未预期异常）
+
+## 10. 项目结构
 
 ```text
 app/
-  api/          # FastAPI 路由
-  service/      # 业务服务层
-  transport/    # LLM / MCP 通信层
-    mcp/        # MCP Server 模块与注册表
-  schemas/      # 请求/响应模型
-  utils/        # 工具函数
+  api/              # FastAPI 路由（agents、tools、mcp、a2a）
+  service/          # 业务服务层
+  transport/        # LLM / MCP / A2A 通信层
+    mcp/servers/    # 独立 stdio MCP Server 脚本
+    mcp/registry.py # MCP Server 注册表
+    a2a/executors/  # A2A AgentExecutor 实现
+    a2a/registry.py # A2A Agent 注册表
+    *_client.py     # MCP / A2A Client 传输层
+    *_graph.py      # LangGraph 状态图定义
+  schemas/          # 请求/响应 Pydantic 模型
+  utils/            # 日志、工具函数
+http_test/
+  api_requests.http # REST Client 冒烟测试
+static/
+  index.html        # 可选 UI，访问 /ui
 ```

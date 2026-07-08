@@ -2,13 +2,30 @@
 
 [中文](README.zh-CN.md) | **English**
 
-> **A minimal LangGraph hands-on project**: run the full loop of **state graph → compile → async invoke** with very little business code—ideal for getting started and sharing within a team.
+> **A minimal multi-agent hands-on project**: LangGraph workflows, MCP tool servers, and A2A agent endpoints in one FastAPI app—ideal for learning and team sharing.
 
 ## Project Purpose
 
-This repository is a **LangGraph learning and practice** starter: it demonstrates core capabilities—state graphs, nodes and edges, reducers, checkpointing, conditional routing, ReAct agents, and more—with minimal business logic, plus a clear FastAPI layering (`api / service / transport / schemas`).
+This repository is a **LangGraph + MCP + A2A learning starter**. It demonstrates:
 
-Future production projects can **use this repo as a starting template**—keep the layered structure and LangGraph integration patterns, then extend agents, workflows, and business logic without scaffolding from scratch.
+- **LangGraph** — state graphs, reducers, checkpointing, conditional routing, ReAct agents
+- **MCP** — stdio tool servers, discovery, and invocation via `langchain-mcp-adapters`
+- **A2A** — Agent Cards, JSON-RPC messaging, and task lifecycle via `a2a-sdk`
+
+All features share the same FastAPI layering (`api / service / transport / schemas`) with minimal business logic.
+
+Future production projects can **use this repo as a starting template**—keep the layered structure and integration patterns, then extend agents, workflows, and business logic without scaffolding from scratch.
+
+### Capability overview
+
+| Area | What you get | Key entry points |
+|------|--------------|------------------|
+| **LangGraph** | Stateful workflows & graph demos | `POST /api/v1/agents/workflow`, `/demo/*` |
+| **LangChain agents** | 5 simple LLM agents + tool calling | `POST /api/v1/agents/run` |
+| **MCP** | 3 stdio servers, tool discovery & invoke | `GET /api/v1/mcp/tools`, `/demo/full-flow` |
+| **A2A** | 2 protocol-compliant agents (`echo`, `qa`) | Agent Card + `/api/v1/a2a/demo/full-flow` |
+
+> **MCP vs A2A**: MCP exposes *tools* for LLM/agent runtimes; A2A exposes *agents* for cross-framework agent-to-agent communication. This project includes both.
 
 ---
 
@@ -47,7 +64,24 @@ uv sync
 cp .env.example .env
 ```
 
-Update `OPENAI_API_KEY` in `.env`.
+Edit `.env` as needed. Common variables:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OPENAI_API_KEY` | For LLM routes | — | API key for OpenAI or compatible providers |
+| `OPENAI_MODEL` | No | `gpt-4o-mini` | Model name |
+| `OPENAI_BASE_URL` | No | — | OpenAI-compatible base URL (e.g. DeepSeek, Azure) |
+| `APP_NAME` | No | `LangGraph Demo` | FastAPI app title |
+| `SERVER_HOST` | No | `127.0.0.1` | Uvicorn/FastAPI bind host |
+| `SERVER_PORT` | No | `8000` | Uvicorn/FastAPI bind port |
+| `LOG_LEVEL` | No | `INFO` | Log level |
+| `MCP_TIMEOUT_SECONDS` | No | `30` | MCP discovery / invocation timeout |
+| `MCP_TOOL_NAME_PREFIX` | No | `true` | Prefix tool names with server name |
+| `A2A_PUBLIC_BASE_URL` | No | `http://127.0.0.1:8000` | Public URL embedded in A2A Agent Cards |
+| `A2A_TIMEOUT_SECONDS` | No | `60` | A2A card fetch / message timeout |
+
+Without `OPENAI_API_KEY`, LangGraph LLM demos, `qa` A2A agent, and most `/agents/run` routes are unavailable; `echo` A2A agent and MCP demos still work.
+Keep `A2A_PUBLIC_BASE_URL` aligned with `SERVER_HOST` + `SERVER_PORT` to avoid Agent Card self-call mismatches.
 
 ## 4. Run
 
@@ -55,7 +89,16 @@ Update `OPENAI_API_KEY` in `.env`.
 uv run uvicorn app.main:app --reload
 ```
 
+This also works (uses `SERVER_HOST` / `SERVER_PORT` from settings):
+
+```bash
+uv run python -m app.main
+```
+
 After `source .venv/bin/activate`, you can run `uvicorn app.main:app --reload` instead if you prefer a classic venv workflow.
+
+- **OpenAPI docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) (includes A2A protocol routes)
+- **HTTP tests**: `http_test/api_requests.http` (VS Code / Cursor REST Client)
 
 ## 5. LangGraph in this project
 
@@ -116,7 +159,44 @@ With default `MCP_TOOL_NAME_PREFIX=true`, tool names are prefixed by server (e.g
 
 Per-server test: `POST /api/v1/mcp/demo/server/{server_name}`
 
-## 7. API Endpoints
+## 7. A2A (Agent-to-Agent Protocol)
+
+This project exposes **2 built-in A2A demo agents** using the official [`a2a-sdk`](https://github.com/a2aproject/a2a-python) with FastAPI route mounting:
+
+| A2A Agent | Path | Description |
+|-----------|------|-------------|
+| `echo` | `/a2a/echo/` | Echo user input via standard A2A task lifecycle |
+| `qa` | `/a2a/qa/` | LLM Q&A agent (requires `OPENAI_API_KEY`) |
+
+Each agent publishes an **Agent Card** at `/.well-known/agent-card.json` under its path and accepts **JSON-RPC** `message/send` requests.
+
+Layering:
+
+- `app/transport/a2a/executors/` — `AgentExecutor` implementations
+- `app/transport/a2a/registry.py` — agent registry and sample messages
+- `app/transport/a2a/server_setup.py` — mount A2A routes on FastAPI
+- `app/transport/a2a_client.py` — A2A client transport
+- `app/service/a2a_service.py` — discovery, messaging, full-flow orchestration
+- `app/api/a2a_router.py` — HTTP test endpoints
+
+Set `A2A_PUBLIC_BASE_URL` (default `http://127.0.0.1:8000`) so Agent Cards and client self-calls resolve correctly. If you run on another host/port, update this value before testing.
+
+Each executor follows the A2A task lifecycle: `submit → working → artifact → completed` (see `app/transport/a2a/task_helpers.py`).
+
+### Full-flow test endpoint
+
+`POST /api/v1/a2a/demo/full-flow` runs:
+
+1. Resolve mounted agents
+2. Fetch each Agent Card
+3. Send a sample message via the A2A client
+4. Return `steps` trace and `messages` results
+
+Direct message test: `POST /api/v1/a2a/demo/message`
+
+## 8. API Endpoints
+
+### Health & agents
 
 - `GET /health`
 - `GET /api/v1/agents`
@@ -127,13 +207,30 @@ Per-server test: `POST /api/v1/mcp/demo/server/{server_name}`
 - `POST /api/v1/agents/demo/conditional-route` **(LangGraph conditional edges)**
 - `POST /api/v1/agents/demo/react-agent` **(LangGraph `create_react_agent`)**
 - `WS /api/v1/agents/ws`
+
+### Tools
+
 - `GET /api/v1/tools`
 - `POST /api/v1/tools`
+
+### MCP
+
 - `GET /api/v1/mcp/servers`
 - `GET /api/v1/mcp/tools`
 - `POST /api/v1/mcp/tools/invoke`
 - `POST /api/v1/mcp/demo/full-flow` **(MCP full-flow test)**
 - `POST /api/v1/mcp/demo/server/{server_name}` **(single MCP server full-flow test)**
+
+### A2A
+
+- `GET /api/v1/a2a/agents`
+- `GET /api/v1/a2a/agents/{agent_name}/card`
+- `POST /api/v1/a2a/demo/message` **(A2A message test)**
+- `POST /api/v1/a2a/demo/full-flow` **(A2A full-flow test)**
+- `GET /a2a/echo/.well-known/agent-card.json` **(A2A Agent Card — echo)**
+- `POST /a2a/echo/` **(A2A JSON-RPC — echo)**
+- `GET /a2a/qa/.well-known/agent-card.json` **(A2A Agent Card — qa)**
+- `POST /a2a/qa/` **(A2A JSON-RPC — qa)**
 
 Example request:
 
@@ -236,6 +333,22 @@ curl -X POST "http://127.0.0.1:8000/api/v1/mcp/tools/invoke" \
   }'
 ```
 
+A2A echo agent message test:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/a2a/demo/message" \
+  -H "Content-Type: application/json" \
+  -d '{"agent_name": "echo", "input_text": "hello a2a"}'
+```
+
+A2A full-flow test (fetch Agent Cards → send sample messages):
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/a2a/demo/full-flow" \
+  -H "Content-Type: application/json" \
+  -d '{"use_sample_messages": true}'
+```
+
 WebSocket stream payload example:
 
 ```json
@@ -245,14 +358,45 @@ WebSocket stream payload example:
 }
 ```
 
-## 8. Project Structure
+## 9. Unified Error Response
+
+All routers return a consistent envelope (`ApiResponse`). For failed requests, global exception handlers map errors to:
+
+```json
+{
+  "success": false,
+  "message": "request_failed",
+  "data": {},
+  "error": {
+    "code": "bad_request",
+    "detail": "Detailed reason"
+  }
+}
+```
+
+Common `message` values:
+
+- `request_failed` (HTTP exceptions such as 400/404)
+- `validation_failed` (request body/parameter validation errors)
+- `internal_server_error` (unexpected server failures)
+
+## 10. Project Structure
 
 ```text
 app/
-  api/          # FastAPI routers
-  service/      # Business services
-  transport/    # LLM / MCP communication layer
-    mcp/        # MCP server modules and registry
-  schemas/      # Request/response models
-  utils/        # Utility helpers
+  api/              # FastAPI routers (agents, tools, mcp, a2a)
+  service/          # Business services
+  transport/        # LLM / MCP / A2A communication layer
+    mcp/servers/    # Standalone stdio MCP server scripts
+    mcp/registry.py # MCP server registry
+    a2a/executors/  # A2A AgentExecutor implementations
+    a2a/registry.py # A2A agent registry
+    *_client.py     # MCP / A2A client transports
+    *_graph.py      # LangGraph state graph definitions
+  schemas/          # Request/response Pydantic models
+  utils/            # Logging, tool helpers
+http_test/
+  api_requests.http # REST Client smoke tests
+static/
+  index.html        # Optional UI at /ui
 ```

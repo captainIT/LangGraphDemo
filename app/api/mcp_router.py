@@ -1,8 +1,9 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 
+from app.api.error_utils import raise_bad_request, raise_internal_server_error
 from app.config import Settings, get_settings
 from app.schemas.common import ApiResponse
 from app.schemas.mcp import (
@@ -42,10 +43,7 @@ async def list_mcp_tools(
         return ApiResponse(data={"tools": [tool.model_dump() for tool in tools]})
     except Exception as exc:
         logger.exception("mcp tool discovery failed")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to list MCP tools",
-        ) from exc
+        raise_internal_server_error(exc, detail="Failed to list MCP tools")
 
 
 @router.post("/tools/invoke", response_model=ApiResponse)
@@ -61,16 +59,10 @@ async def invoke_mcp_tool(
         )
         return ApiResponse(data=result.model_dump())
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
+        raise_bad_request(exc)
     except Exception as exc:
         logger.exception("mcp tool invocation failed", extra={"tool_name": payload.tool_name})
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to invoke MCP tool",
-        ) from exc
+        raise_internal_server_error(exc, detail="Failed to invoke MCP tool")
 
 
 @router.post("/demo/full-flow", response_model=ApiResponse)
@@ -85,16 +77,10 @@ async def run_mcp_full_flow(
         )
         return ApiResponse(data=result.model_dump())
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
+        raise_bad_request(exc)
     except Exception as exc:
         logger.exception("mcp full-flow test failed")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to run MCP full-flow test",
-        ) from exc
+        raise_internal_server_error(exc, detail="Failed to run MCP full-flow test")
 
 
 @router.post("/demo/server/{server_name}", response_model=ApiResponse)
@@ -110,13 +96,7 @@ async def run_mcp_server_flow(
         )
         return ApiResponse(data=result.model_dump())
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
+        raise_bad_request(exc)
     except Exception as exc:
         logger.exception("mcp server flow test failed", extra={"server_name": server_name})
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to run MCP server flow test",
-        ) from exc
+        raise_internal_server_error(exc, detail="Failed to run MCP server flow test")

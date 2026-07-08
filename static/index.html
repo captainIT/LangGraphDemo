@@ -6,32 +6,37 @@
   <title>LangGraph Demo — LLM &amp; Function Calling</title>
   <style>
     :root {
-      --bg: #0f1419;
-      --surface: #1a2332;
-      --border: #2d3a4f;
-      --text: #e7ecf3;
-      --muted: #8b9cb3;
-      --accent: #5b9fd4;
-      --accent-dim: #3d7eae;
-      --success: #6bcb77;
-      --warn: #e8c547;
+      --bg: #070b14;
+      --surface: #111827;
+      --surface-elevated: #182236;
+      --border: #2a3a57;
+      --text: #edf2ff;
+      --muted: #9eb1cf;
+      --accent: #5ca4ff;
+      --accent-dim: #3b78c5;
+      --success: #68d391;
+      --warn: #f6c453;
       --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
       --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      --radius: 10px;
+      --radius: 12px;
+      --shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
       font-family: var(--sans);
-      background: radial-gradient(ellipse 120% 80% at 50% -20%, #1e3a5f 0%, var(--bg) 55%);
+      background:
+        radial-gradient(circle at 10% 0%, #1f3354 0%, transparent 42%),
+        radial-gradient(circle at 90% 0%, #1b2840 0%, transparent 35%),
+        var(--bg);
       color: var(--text);
       line-height: 1.5;
     }
     header {
-      padding: 1.25rem 1.5rem;
+      padding: 1.2rem 1.5rem;
       border-bottom: 1px solid var(--border);
-      background: rgba(26, 35, 50, 0.85);
+      background: rgba(11, 18, 32, 0.86);
       backdrop-filter: blur(8px);
       position: sticky;
       top: 0;
@@ -39,33 +44,118 @@
     }
     header h1 {
       margin: 0;
-      font-size: 1.15rem;
-      font-weight: 600;
+      font-size: 1.2rem;
+      font-weight: 700;
       letter-spacing: -0.02em;
     }
     header p {
-      margin: 0.35rem 0 0;
+      margin: 0.3rem 0 0;
       font-size: 0.85rem;
       color: var(--muted);
     }
+    .header-toolbar {
+      margin-top: 0.85rem;
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .toolbar-locale {
+      margin-left: auto;
+      min-width: 160px;
+      max-width: 220px;
+    }
+    .toolbar-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(17, 24, 39, 0.75);
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+    .toolbar-pill strong {
+      color: var(--text);
+      font-weight: 600;
+    }
     main {
-      max-width: 960px;
+      max-width: 1240px;
       margin: 0 auto;
       padding: 1.5rem;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      gap: 1rem;
+      align-items: start;
+    }
+    .sidebar {
+      position: sticky;
+      top: 104px;
+      background: rgba(17, 24, 39, 0.8);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.95rem;
+      box-shadow: var(--shadow);
+    }
+    .sidebar h2 {
+      margin: 0 0 0.65rem;
+      font-size: 0.86rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .sidebar-nav {
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 0.4rem;
+    }
+    .sidebar-nav a {
+      text-decoration: none;
+      color: var(--muted);
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 0.45rem 0.55rem;
+      font-size: 0.84rem;
+      transition: all 0.15s;
+    }
+    .sidebar-nav a:hover,
+    .sidebar-nav a.active {
+      color: var(--text);
+      border-color: var(--border);
+      background: var(--surface-elevated);
+    }
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .section-label {
+      margin: 0.35rem 0 0.2rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1rem;
     }
     section {
-      background: var(--surface);
+      background: linear-gradient(180deg, rgba(24, 34, 54, 0.94), rgba(17, 24, 39, 0.94));
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 1.25rem 1.35rem;
+      box-shadow: var(--shadow);
     }
     section h2 {
       margin: 0 0 0.75rem;
       font-size: 1rem;
-      font-weight: 600;
+      font-weight: 700;
       color: var(--accent);
     }
     label {
@@ -143,6 +233,7 @@
       min-height: 2.5rem;
     }
     .output.empty { color: var(--muted); font-style: italic; }
+    .module-hidden { display: none; }
     .error {
       margin-top: 0.5rem;
       color: #f08080;
@@ -184,6 +275,26 @@
       font-family: var(--mono);
     }
     .hint { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; }
+    .learn-box {
+      margin-top: 0.75rem;
+      padding: 0.8rem 0.9rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(7, 11, 20, 0.55);
+    }
+    .learn-box strong {
+      color: var(--text);
+      font-size: 0.84rem;
+    }
+    .learn-list {
+      margin: 0.45rem 0 0;
+      padding-left: 1rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    .learn-list li {
+      margin: 0.2rem 0;
+    }
     .stream-box {
       max-height: 220px;
       overflow-y: auto;
@@ -194,164 +305,476 @@
       font-size: 0.75rem;
       color: var(--muted);
     }
+    @media (max-width: 1000px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        position: static;
+      }
+      .sidebar-nav {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+      .module-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
   <header>
     <h1>LangGraph Demo</h1>
     <p>LLM agents, LangGraph demos (workflow, checkpoint, conditional route, ReAct), streaming, and tool traces.</p>
+    <div class="header-toolbar">
+      <span class="toolbar-pill">Modules <strong id="module-count">0</strong></span>
+      <span class="toolbar-pill">Visible <strong id="module-visible-count">0</strong></span>
+      <input id="module-filter" type="text" placeholder="Filter modules (e.g. stream, react, tool...)" />
+      <select id="locale-switch" class="toolbar-locale" aria-label="Language switch">
+        <option value="zh-CN">中文</option>
+        <option value="en-US">English</option>
+      </select>
+    </div>
   </header>
   <main>
-    <section id="sec-health">
-      <h2>Service</h2>
-      <p class="hint" id="health-status">Checking health…</p>
-    </section>
+    <div class="layout">
+      <aside class="sidebar">
+        <h2>Quick Navigation</h2>
+        <nav class="sidebar-nav" id="quick-nav">
+          <a href="#sec-health">Service</a>
+          <a href="#sec-learn">Learning Map</a>
+          <a href="#sec-agents">Agents</a>
+          <a href="#sec-run">Run Agent</a>
+          <a href="#sec-trace">Function Trace</a>
+          <a href="#sec-stream">Streaming</a>
+          <a href="#sec-workflow">Workflow</a>
+          <a href="#sec-lg-checkpoint">Checkpoint Chat</a>
+          <a href="#sec-lg-conditional">Conditional Route</a>
+          <a href="#sec-lg-react">ReAct</a>
+          <a href="#sec-a2a">A2A</a>
+          <a href="#sec-mcp">MCP</a>
+          <a href="#sec-tools">Direct Tools</a>
+        </nav>
+      </aside>
 
-    <section id="sec-agents">
-      <h2>Registered agents</h2>
-      <div class="tags" id="agent-tags"></div>
-      <p class="hint" id="agents-hint"></p>
-    </section>
+      <div class="content">
+        <p class="section-label">System Overview</p>
+        <div class="module-grid">
+          <section id="sec-health" data-module="service health">
+            <h2>Service</h2>
+            <p class="hint" id="health-status">Checking health…</p>
+          </section>
 
-    <section id="sec-run">
-      <h2>Run agent (LLM)</h2>
-      <div class="row">
-        <div>
-          <label for="agent-type">Agent type</label>
-          <select id="agent-type"></select>
+          <section id="sec-learn" data-module="learning map langgraph a2a mcp">
+            <h2>Learning map (new to agent systems)</h2>
+            <p class="hint">Start here first, then run each interactive module below in order.</p>
+            <div class="learn-box">
+              <strong>LangGraph</strong>
+              <ul class="learn-list">
+                <li>Use when one task has multiple steps, branching rules, or state transitions.</li>
+                <li><code>conditional-route</code>: your code decides branch by explicit rules.</li>
+                <li><code>react-agent</code>: model decides when and how to call tools in a loop.</li>
+              </ul>
+            </div>
+            <div class="learn-box">
+              <strong>A2A (Agent-to-Agent)</strong>
+              <ul class="learn-list">
+                <li>Use when one agent needs to ask another specialized agent over a protocol.</li>
+                <li>Think "service contract + remote execution" between agents.</li>
+                <li>This demo shows local A2A cards, message send, and full flow checks.</li>
+              </ul>
+            </div>
+            <div class="learn-box">
+              <strong>MCP (Model Context Protocol)</strong>
+              <ul class="learn-list">
+                <li>Use when an LLM should discover and invoke external tools in a standard way.</li>
+                <li>Think "tool registry + schema + invocation" across multiple servers.</li>
+                <li>This demo shows server discovery, tool listing, invocation, and full flow.</li>
+              </ul>
+            </div>
+          </section>
+
+          <section id="sec-agents" data-module="agent list registry">
+            <h2>Registered agents</h2>
+            <div class="tags" id="agent-tags"></div>
+            <p class="hint" id="agents-hint"></p>
+          </section>
+        </div>
+
+        <p class="section-label">Core Agent Experience</p>
+        <div class="module-grid">
+          <section id="sec-run" data-module="run agent llm">
+            <h2>Run agent (LLM)</h2>
+            <div class="row">
+              <div>
+                <label for="agent-type">Agent type</label>
+                <select id="agent-type"></select>
+              </div>
+            </div>
+            <label for="run-input">Input</label>
+            <textarea id="run-input" placeholder="Ask a question, paste text to summarize, etc."></textarea>
+            <div class="row" style="margin-top: 0.75rem;">
+              <button type="button" id="btn-run">Run agent</button>
+            </div>
+            <div class="output empty" id="run-output">Response will appear here.</div>
+            <div class="error" id="run-error" hidden></div>
+          </section>
+
+          <section id="sec-stream" data-module="stream websocket token">
+            <h2>Stream tokens (WebSocket)</h2>
+            <p class="hint">Connects to <code>/api/v1/agents/ws</code> and streams model chunks for the selected agent type.</p>
+            <div class="row">
+              <div>
+                <label for="stream-agent">Agent type</label>
+                <select id="stream-agent"></select>
+              </div>
+            </div>
+            <label for="stream-input">Input</label>
+            <textarea id="stream-input" rows="3" placeholder="Short prompt for streaming demo"></textarea>
+            <div class="row" style="margin-top: 0.75rem;">
+              <button type="button" id="btn-stream">Start stream</button>
+              <button type="button" class="secondary" id="btn-stream-stop" disabled>Stop</button>
+            </div>
+            <div class="output stream-box empty" id="stream-output">Streamed text appears here.</div>
+            <div class="error" id="stream-error" hidden></div>
+          </section>
+        </div>
+
+        <p class="section-label">Tooling and Traces</p>
+        <div class="module-grid">
+          <section id="sec-trace" data-module="function trace tool calls">
+            <h2>Function calling with trace</h2>
+            <p class="hint">Uses <code>tool_agent</code> and <code>POST /api/v1/agents/run-with-trace</code>. Shows each tool invocation the model requested.</p>
+            <label for="trace-input">Task (time, math, word count, slugify, etc.)</label>
+            <textarea id="trace-input" placeholder="e.g. What time is it in UTC? Add 10 and 32. Slugify: Hello World Demo"></textarea>
+            <div class="row" style="margin-top: 0.75rem;">
+              <button type="button" id="btn-trace">Run with tool trace</button>
+            </div>
+            <div class="tool-chain" id="tool-chain"></div>
+            <label style="margin-top: 0.75rem;">Final answer</label>
+            <div class="output empty" id="trace-output">Tool calls and answer will appear here.</div>
+            <div class="error" id="trace-error" hidden></div>
+          </section>
+
+          <section id="sec-tools" data-module="tool api direct execute">
+            <h2>Direct tool API (no LLM)</h2>
+            <p class="hint">List and invoke tools the same way the model would, for comparison.</p>
+            <div class="tags" id="tool-tags"></div>
+            <div class="row" style="margin-top: 0.75rem;">
+              <div>
+                <label for="tool-name">tool_name</label>
+                <input type="text" id="tool-name" placeholder="add_numbers" />
+              </div>
+            </div>
+            <label for="tool-args">arguments (JSON object)</label>
+            <textarea id="tool-args" rows="4" placeholder='{ "a": 12.5, "b": 7.3 }'></textarea>
+            <div class="row" style="margin-top: 0.75rem;">
+              <button type="button" id="btn-tool-exec">Execute tool</button>
+            </div>
+            <div class="output empty" id="tool-result">Result will appear here.</div>
+            <div class="error" id="tool-error" hidden></div>
+          </section>
+        </div>
+
+        <p class="section-label">LangGraph Examples</p>
+        <div class="module-grid">
+          <section id="sec-workflow" data-module="workflow graph collaboration">
+            <h2>Collaborative workflow</h2>
+            <p class="hint"><code>POST /api/v1/agents/workflow</code> — multi-step graph, final consolidated output.</p>
+            <label for="wf-input">Goal</label>
+            <textarea id="wf-input" rows="3" placeholder="Describe a small planning or writing task…"></textarea>
+            <div class="row" style="margin-top: 0.75rem;">
+              <button type="button" id="btn-workflow">Run workflow</button>
+            </div>
+            <label>Steps</label>
+            <div class="output empty" id="wf-steps">—</div>
+            <label style="margin-top: 0.75rem;">Output</label>
+            <div class="output empty" id="wf-output">—</div>
+            <div class="error" id="wf-error" hidden></div>
+          </section>
+
+          <section id="sec-lg-checkpoint" data-module="langgraph checkpoint chat memory thread">
+            <h2>LangGraph — checkpoint chat</h2>
+            <p class="hint"><code>POST /api/v1/agents/demo/checkpoint</code> — <code>InMemorySaver</code>; reuse <strong>thread id</strong> across calls to continue the same conversation (until server restart).</p>
+            <div class="row">
+              <div>
+                <label for="lg-cp-thread">Thread id</label>
+                <input type="text" id="lg-cp-thread" value="ui-demo-1" maxlength="128" pattern="[a-zA-Z0-9_-]+" spellcheck="false" />
+              </div>
+            </div>
+            <label for="lg-cp-input">Message</label>
+            <textarea id="lg-cp-input" rows="3" placeholder="First turn: introduce a fact. Second turn (same thread id): ask the model to recall it."></textarea>
+            <div class="row" style="margin-top: 0.75rem;">
+              <button type="button" id="btn-lg-checkpoint">Send turn</button>
+            </div>
+            <label>Assistant reply</label>
+            <div class="output empty" id="lg-cp-reply">—</div>
+            <label style="margin-top: 0.75rem;">Messages in thread (count)</label>
+            <div class="output empty" id="lg-cp-meta">—</div>
+            <div class="error" id="lg-cp-error" hidden></div>
+          </section>
+
+          <section id="sec-lg-conditional" data-module="langgraph conditional route branch">
+            <h2>LangGraph — conditional route</h2>
+            <p class="hint"><code>POST /api/v1/agents/demo/conditional-route</code> — routes to a math-style path when the text looks like a calculation, otherwise general Q&amp;A.</p>
+            <p class="hint"><strong>When to use:</strong> deterministic business routing and predictable graph paths.</p>
+            <label for="lg-cr-input">Input</label>
+            <textarea id="lg-cr-input" rows="3" placeholder="Try: Calculate 12.5 + 7.3 — or: What is LangGraph in one sentence?"></textarea>
+            <div class="row" style="margin-top: 0.75rem;">
+              <button type="button" id="btn-lg-conditional">Run conditional demo</button>
+            </div>
+            <label>Chosen branch</label>
+            <div class="output empty" id="lg-cr-branch">—</div>
+            <label style="margin-top: 0.75rem;">Output</label>
+            <div class="output empty" id="lg-cr-output">—</div>
+            <div class="error" id="lg-cr-error" hidden></div>
+          </section>
+
+          <section id="sec-lg-react" data-module="langgraph react agent tools">
+            <h2>LangGraph — ReAct (prebuilt)</h2>
+            <p class="hint"><code>POST /api/v1/agents/demo/react-agent</code> — <code>create_react_agent</code> with the same demo tools (time, math, word count, slugify).</p>
+            <p class="hint"><strong>When to use:</strong> flexible tool-using agents where the model chooses tool sequence dynamically.</p>
+            <label for="lg-react-input">Task</label>
+            <textarea id="lg-react-input" rows="3" placeholder="e.g. What UTC time is it? Then add 10 and 32."></textarea>
+            <div class="row" style="margin-top: 0.75rem;">
+              <button type="button" id="btn-lg-react">Run ReAct demo</button>
+            </div>
+            <label>Final answer</label>
+            <div class="output empty" id="lg-react-answer">—</div>
+            <label style="margin-top: 0.75rem;">Tool messages (approx. rounds)</label>
+            <div class="output empty" id="lg-react-tools">—</div>
+            <div class="error" id="lg-react-error" hidden></div>
+          </section>
+        </div>
+
+        <p class="section-label">Protocols: A2A and MCP</p>
+        <div class="module-grid">
+          <section id="sec-a2a" data-module="a2a protocol agent card messaging">
+            <h2>A2A — agent to agent</h2>
+            <p class="hint"><code>/api/v1/a2a/*</code> — discover A2A agents, fetch cards, send message, run full flow.</p>
+            <div class="learn-box">
+              <strong>How to read this demo</strong>
+              <ul class="learn-list">
+                <li>Step 1: refresh agents to see mounted A2A endpoints.</li>
+                <li>Step 2: pick one agent and send a message.</li>
+                <li>Step 3: run full flow to validate multiple agents end-to-end.</li>
+              </ul>
+            </div>
+            <div class="row" style="margin-top: 0.75rem;">
+              <button type="button" id="btn-a2a-list">Refresh A2A agents</button>
+              <button type="button" id="btn-a2a-flow">Run A2A full flow</button>
+            </div>
+            <label for="a2a-agent-select">Agent</label>
+            <select id="a2a-agent-select"></select>
+            <label for="a2a-input" style="margin-top: 0.75rem;">Message</label>
+            <textarea id="a2a-input" rows="3" placeholder="hello a2a"></textarea>
+            <div class="row" style="margin-top: 0.75rem;">
+              <button type="button" id="btn-a2a-send">Send A2A message</button>
+            </div>
+            <label>Agents</label>
+            <div class="output empty" id="a2a-agents">No data yet.</div>
+            <label style="margin-top: 0.75rem;">Output</label>
+            <div class="output empty" id="a2a-output">Result appears here.</div>
+            <div class="error" id="a2a-error" hidden></div>
+          </section>
+
+          <section id="sec-mcp" data-module="mcp protocol tool discovery invocation">
+            <h2>MCP — tool protocol</h2>
+            <p class="hint"><code>/api/v1/mcp/*</code> — list servers, list tools, invoke tool, run full flow.</p>
+            <div class="learn-box">
+              <strong>How to read this demo</strong>
+              <ul class="learn-list">
+                <li>Step 1: refresh MCP metadata (servers + tools).</li>
+                <li>Step 2: select a tool and invoke with JSON args.</li>
+                <li>Step 3: run full flow to check discovery + sample calls together.</li>
+              </ul>
+            </div>
+            <div class="row" style="margin-top: 0.75rem;">
+              <button type="button" id="btn-mcp-refresh">Refresh MCP metadata</button>
+              <button type="button" id="btn-mcp-flow">Run MCP full flow</button>
+            </div>
+            <div class="row">
+              <div>
+                <label for="mcp-server-select">Server (optional)</label>
+                <select id="mcp-server-select"></select>
+              </div>
+              <div>
+                <label for="mcp-tool-select">Tool</label>
+                <select id="mcp-tool-select"></select>
+              </div>
+            </div>
+            <label for="mcp-args">Arguments (JSON object)</label>
+            <textarea id="mcp-args" rows="4" placeholder='{}'></textarea>
+            <div class="row" style="margin-top: 0.75rem;">
+              <button type="button" id="btn-mcp-invoke">Invoke MCP tool</button>
+            </div>
+            <label>Servers</label>
+            <div class="output empty" id="mcp-servers">No data yet.</div>
+            <label style="margin-top: 0.75rem;">Tools</label>
+            <div class="output empty" id="mcp-tools">No data yet.</div>
+            <label style="margin-top: 0.75rem;">Output</label>
+            <div class="output empty" id="mcp-output">Result appears here.</div>
+            <div class="error" id="mcp-error" hidden></div>
+          </section>
         </div>
       </div>
-      <label for="run-input">Input</label>
-      <textarea id="run-input" placeholder="Ask a question, paste text to summarize, etc."></textarea>
-      <div class="row" style="margin-top: 0.75rem;">
-        <button type="button" id="btn-run">Run agent</button>
-      </div>
-      <div class="output empty" id="run-output">Response will appear here.</div>
-      <div class="error" id="run-error" hidden></div>
-    </section>
-
-    <section id="sec-trace">
-      <h2>Function calling with trace</h2>
-      <p class="hint">Uses <code>tool_agent</code> and <code>POST /api/v1/agents/run-with-trace</code>. Shows each tool invocation the model requested.</p>
-      <label for="trace-input">Task (time, math, word count, slugify, etc.)</label>
-      <textarea id="trace-input" placeholder="e.g. What time is it in UTC? Add 10 and 32. Slugify: Hello World Demo"></textarea>
-      <div class="row" style="margin-top: 0.75rem;">
-        <button type="button" id="btn-trace">Run with tool trace</button>
-      </div>
-      <div class="tool-chain" id="tool-chain"></div>
-      <label style="margin-top: 0.75rem;">Final answer</label>
-      <div class="output empty" id="trace-output">Tool calls and answer will appear here.</div>
-      <div class="error" id="trace-error" hidden></div>
-    </section>
-
-    <section id="sec-stream">
-      <h2>Stream tokens (WebSocket)</h2>
-      <p class="hint">Connects to <code>/api/v1/agents/ws</code> and streams model chunks for the selected agent type.</p>
-      <div class="row">
-        <div>
-          <label for="stream-agent">Agent type</label>
-          <select id="stream-agent"></select>
-        </div>
-      </div>
-      <label for="stream-input">Input</label>
-      <textarea id="stream-input" rows="3" placeholder="Short prompt for streaming demo"></textarea>
-      <div class="row" style="margin-top: 0.75rem;">
-        <button type="button" id="btn-stream">Start stream</button>
-        <button type="button" class="secondary" id="btn-stream-stop" disabled>Stop</button>
-      </div>
-      <div class="output stream-box empty" id="stream-output">Streamed text appears here.</div>
-      <div class="error" id="stream-error" hidden></div>
-    </section>
-
-    <section id="sec-workflow">
-      <h2>Collaborative workflow</h2>
-      <p class="hint"><code>POST /api/v1/agents/workflow</code> — multi-step graph, final consolidated output.</p>
-      <label for="wf-input">Goal</label>
-      <textarea id="wf-input" rows="3" placeholder="Describe a small planning or writing task…"></textarea>
-      <div class="row" style="margin-top: 0.75rem;">
-        <button type="button" id="btn-workflow">Run workflow</button>
-      </div>
-      <label>Steps</label>
-      <div class="output empty" id="wf-steps">—</div>
-      <label style="margin-top: 0.75rem;">Output</label>
-      <div class="output empty" id="wf-output">—</div>
-      <div class="error" id="wf-error" hidden></div>
-    </section>
-
-    <section id="sec-lg-checkpoint">
-      <h2>LangGraph — checkpoint chat</h2>
-      <p class="hint"><code>POST /api/v1/agents/demo/checkpoint</code> — <code>InMemorySaver</code>; reuse <strong>thread id</strong> across calls to continue the same conversation (until server restart).</p>
-      <div class="row">
-        <div>
-          <label for="lg-cp-thread">Thread id</label>
-          <input type="text" id="lg-cp-thread" value="ui-demo-1" maxlength="128" pattern="[a-zA-Z0-9_-]+" spellcheck="false" />
-        </div>
-      </div>
-      <label for="lg-cp-input">Message</label>
-      <textarea id="lg-cp-input" rows="3" placeholder="First turn: introduce a fact. Second turn (same thread id): ask the model to recall it."></textarea>
-      <div class="row" style="margin-top: 0.75rem;">
-        <button type="button" id="btn-lg-checkpoint">Send turn</button>
-      </div>
-      <label>Assistant reply</label>
-      <div class="output empty" id="lg-cp-reply">—</div>
-      <label style="margin-top: 0.75rem;">Messages in thread (count)</label>
-      <div class="output empty" id="lg-cp-meta">—</div>
-      <div class="error" id="lg-cp-error" hidden></div>
-    </section>
-
-    <section id="sec-lg-conditional">
-      <h2>LangGraph — conditional route</h2>
-      <p class="hint"><code>POST /api/v1/agents/demo/conditional-route</code> — routes to a math-style path when the text looks like a calculation, otherwise general Q&amp;A.</p>
-      <label for="lg-cr-input">Input</label>
-      <textarea id="lg-cr-input" rows="3" placeholder="Try: Calculate 12.5 + 7.3 — or: What is LangGraph in one sentence?"></textarea>
-      <div class="row" style="margin-top: 0.75rem;">
-        <button type="button" id="btn-lg-conditional">Run conditional demo</button>
-      </div>
-      <label>Chosen branch</label>
-      <div class="output empty" id="lg-cr-branch">—</div>
-      <label style="margin-top: 0.75rem;">Output</label>
-      <div class="output empty" id="lg-cr-output">—</div>
-      <div class="error" id="lg-cr-error" hidden></div>
-    </section>
-
-    <section id="sec-lg-react">
-      <h2>LangGraph — ReAct (prebuilt)</h2>
-      <p class="hint"><code>POST /api/v1/agents/demo/react-agent</code> — <code>create_react_agent</code> with the same demo tools (time, math, word count, slugify).</p>
-      <label for="lg-react-input">Task</label>
-      <textarea id="lg-react-input" rows="3" placeholder="e.g. What UTC time is it? Then add 10 and 32."></textarea>
-      <div class="row" style="margin-top: 0.75rem;">
-        <button type="button" id="btn-lg-react">Run ReAct demo</button>
-      </div>
-      <label>Final answer</label>
-      <div class="output empty" id="lg-react-answer">—</div>
-      <label style="margin-top: 0.75rem;">Tool messages (approx. rounds)</label>
-      <div class="output empty" id="lg-react-tools">—</div>
-      <div class="error" id="lg-react-error" hidden></div>
-    </section>
-
-    <section id="sec-tools">
-      <h2>Direct tool API (no LLM)</h2>
-      <p class="hint">List and invoke tools the same way the model would, for comparison.</p>
-      <div class="tags" id="tool-tags"></div>
-      <div class="row" style="margin-top: 0.75rem;">
-        <div>
-          <label for="tool-name">tool_name</label>
-          <input type="text" id="tool-name" placeholder="add_numbers" />
-        </div>
-      </div>
-      <label for="tool-args">arguments (JSON object)</label>
-      <textarea id="tool-args" rows="4" placeholder='{ "a": 12.5, "b": 7.3 }'></textarea>
-      <div class="row" style="margin-top: 0.75rem;">
-        <button type="button" id="btn-tool-exec">Execute tool</button>
-      </div>
-      <div class="output empty" id="tool-result">Result will appear here.</div>
-      <div class="error" id="tool-error" hidden></div>
-    </section>
+    </div>
   </main>
   <footer>Open this page from the API server: <code>/ui/</code> (same origin).</footer>
 
   <script>
     const api = (path) => `${location.origin}${path}`;
+    const I18N = {
+      "zh-CN": {
+        pageTitle: "LangGraph 演示 — LLM 与函数调用",
+        headerTitle: "LangGraph 演示",
+        headerDesc: "LLM agents、LangGraph demos（workflow、checkpoint、conditional route、ReAct）、流式输出与工具调用追踪。",
+        modules: "模块",
+        visible: "可见",
+        filterPlaceholder: "筛选模块（例如 stream、react、tool）",
+        navService: "服务",
+        navLearn: "学习地图",
+        navAgents: "Agent 列表",
+        navRun: "运行 Agent",
+        navTrace: "函数追踪",
+        navStream: "流式输出",
+        navWorkflow: "工作流",
+        navCheckpoint: "Checkpoint 聊天",
+        navConditional: "条件路由",
+        navReact: "ReAct",
+        navA2A: "A2A",
+        navMCP: "MCP",
+        navTools: "直接工具",
+        secOverview: "系统概览",
+        secCore: "核心 Agent 体验",
+        secTooling: "工具与追踪",
+        secLangGraph: "LangGraph 示例",
+        secProtocols: "协议：A2A 与 MCP",
+        hService: "服务",
+        hLearn: "学习地图（新手入口）",
+        hAgents: "已注册 Agent",
+        hRun: "运行 Agent（LLM）",
+        hTrace: "函数调用追踪",
+        hStream: "流式输出（WebSocket）",
+        hWorkflow: "协作工作流",
+        hCheckpoint: "LangGraph — checkpoint 聊天",
+        hConditional: "LangGraph — 条件路由",
+        hReact: "LangGraph — ReAct（预置）",
+        hA2A: "A2A — Agent 到 Agent",
+        hMCP: "MCP — 工具协议",
+        hTools: "直接工具 API（无 LLM）",
+      },
+      "en-US": {
+        pageTitle: "LangGraph Demo — LLM & Function Calling",
+        headerTitle: "LangGraph Demo",
+        headerDesc: "LLM agents, LangGraph demos (workflow, checkpoint, conditional route, ReAct), streaming, and tool traces.",
+        modules: "Modules",
+        visible: "Visible",
+        filterPlaceholder: "Filter modules (e.g. stream, react, tool...)",
+        navService: "Service",
+        navLearn: "Learning Map",
+        navAgents: "Agents",
+        navRun: "Run Agent",
+        navTrace: "Function Trace",
+        navStream: "Streaming",
+        navWorkflow: "Workflow",
+        navCheckpoint: "Checkpoint Chat",
+        navConditional: "Conditional Route",
+        navReact: "ReAct",
+        navA2A: "A2A",
+        navMCP: "MCP",
+        navTools: "Direct Tools",
+        secOverview: "System Overview",
+        secCore: "Core Agent Experience",
+        secTooling: "Tooling and Traces",
+        secLangGraph: "LangGraph Examples",
+        secProtocols: "Protocols: A2A and MCP",
+        hService: "Service",
+        hLearn: "Learning map (new to agent systems)",
+        hAgents: "Registered agents",
+        hRun: "Run agent (LLM)",
+        hTrace: "Function calling with trace",
+        hStream: "Stream tokens (WebSocket)",
+        hWorkflow: "Collaborative workflow",
+        hCheckpoint: "LangGraph — checkpoint chat",
+        hConditional: "LangGraph — conditional route",
+        hReact: "LangGraph — ReAct (prebuilt)",
+        hA2A: "A2A — agent to agent",
+        hMCP: "MCP — tool protocol",
+        hTools: "Direct tool API (no LLM)",
+      },
+    };
+    let currentLocale = "zh-CN";
+
+    function t(key) {
+      return I18N[currentLocale]?.[key] || I18N["en-US"]?.[key] || key;
+    }
+
+    function applyStaticI18n() {
+      document.title = t("pageTitle");
+      const headerTitle = document.querySelector("header h1");
+      const headerDesc = document.querySelector("header p");
+      if (headerTitle) headerTitle.textContent = t("headerTitle");
+      if (headerDesc) headerDesc.textContent = t("headerDesc");
+
+      const pills = Array.from(document.querySelectorAll(".header-toolbar .toolbar-pill"));
+      if (pills[0]) pills[0].childNodes[0].textContent = `${t("modules")} `;
+      if (pills[1]) pills[1].childNodes[0].textContent = `${t("visible")} `;
+      const filter = document.getElementById("module-filter");
+      if (filter) filter.placeholder = t("filterPlaceholder");
+
+      const navMap = {
+        "#sec-health": "navService",
+        "#sec-learn": "navLearn",
+        "#sec-agents": "navAgents",
+        "#sec-run": "navRun",
+        "#sec-trace": "navTrace",
+        "#sec-stream": "navStream",
+        "#sec-workflow": "navWorkflow",
+        "#sec-lg-checkpoint": "navCheckpoint",
+        "#sec-lg-conditional": "navConditional",
+        "#sec-lg-react": "navReact",
+        "#sec-a2a": "navA2A",
+        "#sec-mcp": "navMCP",
+        "#sec-tools": "navTools",
+      };
+      Array.from(document.querySelectorAll("#quick-nav a")).forEach((link) => {
+        const key = navMap[link.getAttribute("href") || ""];
+        if (key) link.textContent = t(key);
+      });
+
+      const sectionLabels = Array.from(document.querySelectorAll(".section-label"));
+      if (sectionLabels[0]) sectionLabels[0].textContent = t("secOverview");
+      if (sectionLabels[1]) sectionLabels[1].textContent = t("secCore");
+      if (sectionLabels[2]) sectionLabels[2].textContent = t("secTooling");
+      if (sectionLabels[3]) sectionLabels[3].textContent = t("secLangGraph");
+      if (sectionLabels[4]) sectionLabels[4].textContent = t("secProtocols");
+
+      const titleMap = {
+        "sec-health": "hService",
+        "sec-learn": "hLearn",
+        "sec-agents": "hAgents",
+        "sec-run": "hRun",
+        "sec-trace": "hTrace",
+        "sec-stream": "hStream",
+        "sec-workflow": "hWorkflow",
+        "sec-lg-checkpoint": "hCheckpoint",
+        "sec-lg-conditional": "hConditional",
+        "sec-lg-react": "hReact",
+        "sec-a2a": "hA2A",
+        "sec-mcp": "hMCP",
+        "sec-tools": "hTools",
+      };
+      Object.entries(titleMap).forEach(([id, key]) => {
+        const h2 = document.querySelector(`#${id} h2`);
+        if (h2) h2.textContent = t(key);
+      });
+    }
+
+    function applyLocale(locale) {
+      currentLocale = locale in I18N ? locale : "zh-CN";
+      applyStaticI18n();
+    }
 
     function showError(el, msg) {
       el.textContent = msg;
@@ -411,6 +834,72 @@
       }
     }
 
+    async function initA2a() {
+      const agentSelect = document.getElementById("a2a-agent-select");
+      const agentsOut = document.getElementById("a2a-agents");
+      const err = document.getElementById("a2a-error");
+      err.hidden = true;
+      try {
+        const j = await fetchJson("/api/v1/a2a/agents", { method: "GET" });
+        const agents = (j.data && j.data.agents) || [];
+        if (!agents.length) {
+          agentSelect.innerHTML = '<option value="">(none)</option>';
+          agentsOut.classList.remove("empty");
+          agentsOut.textContent = "No mounted A2A agents.";
+          return;
+        }
+        agentSelect.innerHTML = agents.map((a) => `<option value="${a.name}">${a.name}</option>`).join("");
+        agentsOut.classList.remove("empty");
+        agentsOut.textContent = agents
+          .map((a) => `${a.name} | path=${a.path} | skill=${a.skill_name} | mounted=${a.mounted}`)
+          .join("\n");
+      } catch (e) {
+        agentSelect.innerHTML = '<option value="">(failed)</option>';
+        agentsOut.textContent = "";
+        agentsOut.classList.add("empty");
+        showError(err, e.message);
+      }
+    }
+
+    async function initMcp() {
+      const serverSelect = document.getElementById("mcp-server-select");
+      const toolSelect = document.getElementById("mcp-tool-select");
+      const serversOut = document.getElementById("mcp-servers");
+      const toolsOut = document.getElementById("mcp-tools");
+      const err = document.getElementById("mcp-error");
+      err.hidden = true;
+      try {
+        const [serversRes, toolsRes] = await Promise.all([
+          fetchJson("/api/v1/mcp/servers", { method: "GET" }),
+          fetchJson("/api/v1/mcp/tools", { method: "GET" }),
+        ]);
+        const servers = (serversRes.data && serversRes.data.servers) || [];
+        const tools = (toolsRes.data && toolsRes.data.tools) || [];
+        serverSelect.innerHTML = ['<option value="">(auto)</option>']
+          .concat(servers.map((s) => `<option value="${s.name}">${s.name}</option>`))
+          .join("");
+        toolSelect.innerHTML = tools.length
+          ? tools.map((t) => `<option value="${t.name}">${t.name}</option>`).join("")
+          : '<option value="">(none)</option>';
+        serversOut.classList.remove("empty");
+        toolsOut.classList.remove("empty");
+        serversOut.textContent = servers.length
+          ? servers.map((s) => `${s.name} | transport=${s.transport} | tools=${(s.tool_names || []).join(", ")}`).join("\n")
+          : "No MCP servers.";
+        toolsOut.textContent = tools.length
+          ? tools.map((t) => `${t.name} | server=${t.server_name || "?"} | ${t.description || "-"}`).join("\n")
+          : "No MCP tools.";
+      } catch (e) {
+        serverSelect.innerHTML = '<option value="">(failed)</option>';
+        toolSelect.innerHTML = '<option value="">(failed)</option>';
+        serversOut.textContent = "";
+        toolsOut.textContent = "";
+        serversOut.classList.add("empty");
+        toolsOut.classList.add("empty");
+        showError(err, e.message);
+      }
+    }
+
     document.getElementById("btn-run").addEventListener("click", async () => {
       const out = document.getElementById("run-output");
       const err = document.getElementById("run-error");
@@ -419,7 +908,7 @@
       const input = document.getElementById("run-input").value.trim();
       const agent_type = document.getElementById("agent-type").value;
       if (!input) {
-        showError(err, "Input is required.");
+        showError(err, currentLocale === "zh-CN" ? "请输入内容。" : "Input is required.");
         return;
       }
       btn.disabled = true;
@@ -449,7 +938,7 @@
       err.hidden = true;
       const input = document.getElementById("trace-input").value.trim();
       if (!input) {
-        showError(err, "Input is required.");
+        showError(err, currentLocale === "zh-CN" ? "请输入内容。" : "Input is required.");
         return;
       }
       btn.disabled = true;
@@ -505,7 +994,7 @@
       const input = document.getElementById("stream-input").value.trim();
       const agent_type = document.getElementById("stream-agent").value;
       if (!input) {
-        showError(err, "Input is required.");
+        showError(err, currentLocale === "zh-CN" ? "请输入内容。" : "Input is required.");
         return;
       }
       if (ws) {
@@ -564,7 +1053,7 @@
       err.hidden = true;
       const input = document.getElementById("wf-input").value.trim();
       if (!input) {
-        showError(err, "Input is required.");
+        showError(err, currentLocale === "zh-CN" ? "请输入内容。" : "Input is required.");
         return;
       }
       btn.disabled = true;
@@ -603,7 +1092,7 @@
         return;
       }
       if (!input_text) {
-        showError(err, "Message is required.");
+        showError(err, currentLocale === "zh-CN" ? "请输入消息内容。" : "Message is required.");
         return;
       }
       btn.disabled = true;
@@ -638,7 +1127,7 @@
       err.hidden = true;
       const input_text = document.getElementById("lg-cr-input").value.trim();
       if (!input_text) {
-        showError(err, "Input is required.");
+        showError(err, currentLocale === "zh-CN" ? "请输入内容。" : "Input is required.");
         return;
       }
       btn.disabled = true;
@@ -673,7 +1162,7 @@
       err.hidden = true;
       const input_text = document.getElementById("lg-react-input").value.trim();
       if (!input_text) {
-        showError(err, "Task is required.");
+        showError(err, currentLocale === "zh-CN" ? "请输入任务内容。" : "Task is required.");
         return;
       }
       btn.disabled = true;
@@ -714,7 +1203,7 @@
         return;
       }
       if (!tool_name) {
-        showError(err, "tool_name is required.");
+        showError(err, currentLocale === "zh-CN" ? "请输入 tool_name。" : "tool_name is required.");
         return;
       }
       btn.disabled = true;
@@ -735,9 +1224,186 @@
       }
     });
 
+    document.getElementById("btn-a2a-list").addEventListener("click", async () => {
+      await initA2a();
+    });
+
+    document.getElementById("btn-a2a-send").addEventListener("click", async () => {
+      const err = document.getElementById("a2a-error");
+      const out = document.getElementById("a2a-output");
+      const btn = document.getElementById("btn-a2a-send");
+      err.hidden = true;
+      const agent_name = document.getElementById("a2a-agent-select").value;
+      const input_text = document.getElementById("a2a-input").value.trim();
+      if (!agent_name) {
+        showError(err, currentLocale === "zh-CN" ? "请先选择 A2A Agent。" : "Select an A2A agent first.");
+        return;
+      }
+      if (!input_text) {
+        showError(err, currentLocale === "zh-CN" ? "请输入消息内容。" : "Message is required.");
+        return;
+      }
+      btn.disabled = true;
+      out.classList.remove("empty");
+      out.textContent = "Sending…";
+      try {
+        const j = await fetchJson("/api/v1/a2a/demo/message", {
+          method: "POST",
+          body: JSON.stringify({ agent_name, input_text }),
+        });
+        out.textContent = JSON.stringify(j.data || {}, null, 2);
+      } catch (e) {
+        out.textContent = "";
+        out.classList.add("empty");
+        showError(err, e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("btn-a2a-flow").addEventListener("click", async () => {
+      const err = document.getElementById("a2a-error");
+      const out = document.getElementById("a2a-output");
+      const btn = document.getElementById("btn-a2a-flow");
+      err.hidden = true;
+      btn.disabled = true;
+      out.classList.remove("empty");
+      out.textContent = "Running full flow…";
+      try {
+        const j = await fetchJson("/api/v1/a2a/demo/full-flow", {
+          method: "POST",
+          body: JSON.stringify({ use_sample_messages: true }),
+        });
+        out.textContent = JSON.stringify(j.data || {}, null, 2);
+      } catch (e) {
+        out.textContent = "";
+        out.classList.add("empty");
+        showError(err, e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("btn-mcp-refresh").addEventListener("click", async () => {
+      await initMcp();
+    });
+
+    document.getElementById("btn-mcp-invoke").addEventListener("click", async () => {
+      const err = document.getElementById("mcp-error");
+      const out = document.getElementById("mcp-output");
+      const btn = document.getElementById("btn-mcp-invoke");
+      err.hidden = true;
+      const tool_name = document.getElementById("mcp-tool-select").value;
+      const server_name = document.getElementById("mcp-server-select").value || null;
+      let arguments_ = {};
+      try {
+        arguments_ = JSON.parse(document.getElementById("mcp-args").value || "{}");
+      } catch {
+        showError(err, "Arguments must be valid JSON.");
+        return;
+      }
+      if (!tool_name) {
+        showError(err, currentLocale === "zh-CN" ? "请先选择工具。" : "Select a tool first.");
+        return;
+      }
+      btn.disabled = true;
+      out.classList.remove("empty");
+      out.textContent = "Invoking…";
+      try {
+        const j = await fetchJson("/api/v1/mcp/tools/invoke", {
+          method: "POST",
+          body: JSON.stringify({ tool_name, arguments: arguments_, server_name }),
+        });
+        out.textContent = JSON.stringify(j.data || {}, null, 2);
+      } catch (e) {
+        out.textContent = "";
+        out.classList.add("empty");
+        showError(err, e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("btn-mcp-flow").addEventListener("click", async () => {
+      const err = document.getElementById("mcp-error");
+      const out = document.getElementById("mcp-output");
+      const btn = document.getElementById("btn-mcp-flow");
+      err.hidden = true;
+      btn.disabled = true;
+      out.classList.remove("empty");
+      out.textContent = "Running full flow…";
+      try {
+        const j = await fetchJson("/api/v1/mcp/demo/full-flow", {
+          method: "POST",
+          body: JSON.stringify({ include_tool_invocations: true }),
+        });
+        out.textContent = JSON.stringify(j.data || {}, null, 2);
+      } catch (e) {
+        out.textContent = "";
+        out.classList.add("empty");
+        showError(err, e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    const modules = Array.from(document.querySelectorAll("section[data-module]"));
+    const navLinks = Array.from(document.querySelectorAll("#quick-nav a"));
+    const filterInput = document.getElementById("module-filter");
+    const totalCountEl = document.getElementById("module-count");
+    const visibleCountEl = document.getElementById("module-visible-count");
+
+    function refreshModuleCount() {
+      const visible = modules.filter((el) => !el.classList.contains("module-hidden")).length;
+      totalCountEl.textContent = String(modules.length);
+      visibleCountEl.textContent = String(visible);
+    }
+
+    function applyModuleFilter() {
+      const q = (filterInput.value || "").trim().toLowerCase();
+      modules.forEach((el) => {
+        const title = (el.querySelector("h2")?.textContent || "").toLowerCase();
+        const meta = (el.dataset.module || "").toLowerCase();
+        const hit = !q || title.includes(q) || meta.includes(q);
+        el.classList.toggle("module-hidden", !hit);
+      });
+      refreshModuleCount();
+    }
+
+    function updateActiveNav() {
+      const y = window.scrollY + 130;
+      let activeId = "";
+      for (const section of modules) {
+        if (section.classList.contains("module-hidden")) continue;
+        if (section.offsetTop <= y) activeId = section.id;
+      }
+      navLinks.forEach((link) => {
+        const hit = link.getAttribute("href") === `#${activeId}`;
+        link.classList.toggle("active", hit);
+      });
+    }
+
+    filterInput.addEventListener("input", () => {
+      applyModuleFilter();
+      updateActiveNav();
+    });
+
+    window.addEventListener("scroll", updateActiveNav, { passive: true });
+
+    const localeSwitch = document.getElementById("locale-switch");
+    localeSwitch.value = "zh-CN";
+    localeSwitch.addEventListener("change", (event) => {
+      applyLocale(event.target.value || "zh-CN");
+    });
+
+    applyLocale("zh-CN");
     initHealth();
     initAgents();
     initTools();
+    initA2a();
+    initMcp();
+    applyModuleFilter();
+    updateActiveNav();
   </script>
 </body>
 </html>

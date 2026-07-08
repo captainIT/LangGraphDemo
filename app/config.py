@@ -20,6 +20,16 @@ def _dotenv_files() -> tuple[str, ...] | None:
 
 class Settings(BaseSettings):
     app_name: str = "LangGraph Demo"
+    server_host: str = Field(
+        default="127.0.0.1",
+        description="Host address for the FastAPI / uvicorn server",
+    )
+    server_port: int = Field(
+        default=8000,
+        ge=1,
+        le=65535,
+        description="Port for the FastAPI / uvicorn server",
+    )
     log_level: str = "INFO"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
@@ -35,6 +45,15 @@ class Settings(BaseSettings):
     mcp_tool_name_prefix: bool = Field(
         default=True,
         description="Prefix MCP tool names with server name to avoid collisions",
+    )
+    a2a_public_base_url: str = Field(
+        default="http://127.0.0.1:8000",
+        description="Public base URL used in A2A AgentCard and client self-calls",
+    )
+    a2a_timeout_seconds: float = Field(
+        default=60.0,
+        ge=1.0,
+        description="Timeout for A2A agent card fetch and message calls",
     )
 
     @field_validator("openai_base_url", mode="before")

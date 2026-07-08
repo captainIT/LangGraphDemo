@@ -139,3 +139,28 @@ Content-Type: {{contentType}}
 {
   "include_tool_invocations": true
 }
+
+### A2A — list configured agents
+GET {{baseUrl}}/api/v1/a2a/agents
+Accept: {{contentType}}
+
+### A2A — fetch echo agent card
+GET {{baseUrl}}/a2a/echo/.well-known/agent-card.json
+Accept: {{contentType}}
+
+### A2A — send message to echo agent
+POST {{baseUrl}}/api/v1/a2a/demo/message
+Content-Type: {{contentType}}
+
+{
+  "agent_name": "echo",
+  "input_text": "hello a2a"
+}
+
+### A2A — full-flow test (fetch cards → send sample messages)
+POST {{baseUrl}}/api/v1/a2a/demo/full-flow
+Content-Type: {{contentType}}
+
+{
+  "use_sample_messages": true
+}

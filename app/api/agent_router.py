@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 
+from app.api.error_utils import raise_internal_server_error
 from app.config import Settings, get_settings
 from app.schemas.langgraph_demo import (
     LangGraphCheckpointDemoRequest,
@@ -70,10 +71,7 @@ async def run_agent(
         return ApiResponse(data=result.model_dump())
     except Exception as exc:
         logger.exception("agent execution failed", extra={"agent_type": payload.agent_type.value})
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to run agent",
-        ) from exc
+        raise_internal_server_error(exc, detail="Failed to run agent")
 
 
 @router.post("/run-with-trace", response_model=ApiResponse)
@@ -97,10 +95,7 @@ async def run_agent_with_trace(
         return ApiResponse(data=result.model_dump())
     except Exception as exc:
         logger.exception("agent run with trace failed")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to run agent with trace",
-        ) from exc
+        raise_internal_server_error(exc, detail="Failed to run agent with trace")
 
 
 @router.post("/workflow", response_model=ApiResponse)
@@ -114,10 +109,7 @@ async def run_workflow(
         return ApiResponse(data=result.model_dump())
     except Exception as exc:
         logger.exception("workflow execution failed")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to run collaborative workflow",
-        ) from exc
+        raise_internal_server_error(exc, detail="Failed to run collaborative workflow")
 
 
 @router.post("/demo/checkpoint", response_model=ApiResponse)
@@ -132,10 +124,7 @@ async def demo_checkpoint_chat(
         return ApiResponse(data=result.model_dump())
     except Exception as exc:
         logger.exception("checkpoint demo failed", extra={"thread_id": payload.thread_id})
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to run checkpoint demo",
-        ) from exc
+        raise_internal_server_error(exc, detail="Failed to run checkpoint demo")
 
 
 @router.post("/demo/conditional-route", response_model=ApiResponse)
@@ -150,10 +139,7 @@ async def demo_conditional_route(
         return ApiResponse(data=result.model_dump())
     except Exception as exc:
         logger.exception("conditional-route demo failed")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to run conditional-route demo",
-        ) from exc
+        raise_internal_server_error(exc, detail="Failed to run conditional-route demo")
 
 
 @router.post("/demo/react-agent", response_model=ApiResponse)
@@ -168,10 +154,7 @@ async def demo_react_agent(
         return ApiResponse(data=result.model_dump())
     except Exception as exc:
         logger.exception("react-agent demo failed")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to run react-agent demo",
-        ) from exc
+        raise_internal_server_error(exc, detail="Failed to run react-agent demo")
 
 
 @router.websocket("/ws")
